@@ -9,8 +9,9 @@ import PluginMarket from "./components/PluginMarket.vue";
 import ClipboardPlugin from "./components/ClipboardPlugin.vue";
 import MemoPlugin from "./components/MemoPlugin.vue";
 import JsonEditorPlugin from "./components/JsonEditorPlugin.vue";
+import TimestampPlugin from "./components/TimestampPlugin.vue";
 import type { App, Plugin } from "./types";
-import { initDB, getEnabledPlugins, searchPlugins as dbSearchPlugins } from "./db";
+import { initDB, getEnabledPlugins, searchPlugins as dbSearchPlugins, getClipboardHistory, getMemos } from "./db";
 
 // 插件定义（从 IndexedDB 加载）
 const allPlugins = ref<Plugin[]>([]);
@@ -25,7 +26,11 @@ const showPluginMarket = ref(false);
 const showClipboard = ref(false);
 const showMemo = ref(false);
 const showJsonEditor = ref(false);
+const showTimestamp = ref(false);
 const expandedRecent = ref(false);
+
+// 窗口固定状态
+const isPinned = ref(false);
 
 // 状态持久化的 key
 const STATE_STORAGE_KEY = "app_last_state";
@@ -38,12 +43,12 @@ const memoCount = ref(0);
 async function loadDataStats() {
   try {
     // 加载剪贴板数量
-    const clipboardHistory = await invoke<any[]>("get_clipboard_history");
-    clipboardCount.value = clipboardHistory.length;
+    const clipboardItems = await getClipboardHistory();
+    clipboardCount.value = clipboardItems.length;
     
     // 加载备忘录数量
-    const memos = await invoke<any[]>("get_memos");
-    memoCount.value = memos.length;
+    const memoItems = await getMemos();
+    memoCount.value = memoItems.length;
   } catch (e) {
     console.error("Failed to load data stats:", e);
   }
@@ -57,7 +62,9 @@ function saveCurrentState() {
     showClipboard: showClipboard.value,
     showMemo: showMemo.value,
     showJsonEditor: showJsonEditor.value,
+    showTimestamp: showTimestamp.value,
     expandedRecent: expandedRecent.value,
+    isPinned: isPinned.value,
   };
   localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
 }
@@ -73,11 +80,19 @@ function restoreLastState() {
       showClipboard.value = state.showClipboard || false;
       showMemo.value = state.showMemo || false;
       showJsonEditor.value = state.showJsonEditor || false;
+      showTimestamp.value = state.showTimestamp || false;
       expandedRecent.value = state.expandedRecent || false;
+      isPinned.value = state.isPinned || false;
     }
   } catch (e) {
     console.error("Failed to restore last state:", e);
   }
+}
+
+// 切换固定状态
+function togglePin() {
+  isPinned.value = !isPinned.value;
+  saveCurrentState();
 }
 
 
@@ -141,14 +156,44 @@ const matchedPlugins = computed(() => {
 });
 
 // 是否显示搜索结果
-const showSearchResults = computed(() => searchQuery.value.length > 0 && apps.value.length > 0);
+const showSearchResults = computed(() => searchQuery.value.length > 0 && (apps.value.length > 0 || matchedPlugins.value.length > 0));
 
-// 是否显示插件推荐（有搜索内容但没有应用结果时）
-const showPluginRecommendations = computed(() => 
-  searchQuery.value.length > 0 && 
-  apps.value.length === 0 && 
-  matchedPlugins.value.length > 0
-);
+// 是否显示智能推荐（什么都没匹配到时）
+const showSmartRecommendations = computed(() => {
+  if (searchQuery.value.length === 0) return false;
+  if (apps.value.length > 0 || matchedPlugins.value.length > 0) return false;
+  
+  // 检测是否需要翻译（包含中文或英文）
+  const hasChinese = /[\u4e00-\u9fa5]/.test(searchQuery.value);
+  const hasEnglish = /[a-zA-Z]/.test(searchQuery.value);
+  
+  return hasChinese || hasEnglish;
+});
+
+// 智能推荐的插件
+const smartRecommendedPlugins = computed(() => {
+  const query = searchQuery.value;
+  const hasChinese = /[\u4e00-\u9fa5]/.test(query);
+  const hasEnglish = /[a-zA-Z]/.test(query);
+  
+  const recommendations = [];
+  
+  // 如果包含中文或英文，推荐翻译
+  if (hasChinese || hasEnglish) {
+    const translatorPlugin = allPlugins.value.find(p => p.id === 'translator');
+    if (translatorPlugin) {
+      recommendations.push(translatorPlugin);
+    }
+  }
+  
+  // 总是推荐AI对话
+  const aiPlugin = allPlugins.value.find(p => p.id === 'ai');
+  if (aiPlugin) {
+    recommendations.push(aiPlugin);
+  }
+  
+  return recommendations;
+});
 
 // 防抖搜索
 let searchTimer: number | null = null;
@@ -217,37 +262,51 @@ async function handleSelect(app: App) {
 
 function handleKeydown(e: KeyboardEvent) {
   // 如果在设置界面、插件市场或插件中，ESC 返回主界面
-  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value) {
+  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value) {
     if (e.key === "Escape") {
       showSettings.value = false;
       showPluginMarket.value = false;
       showClipboard.value = false;
       showMemo.value = false;
       showJsonEditor.value = false;
+      showTimestamp.value = false;
       saveCurrentState(); // 保存当前状态（主页面）
       nextTick(() => focusInput());
     }
     return;
   }
 
-  // 如果有应用搜索结果
+  // 如果有搜索结果（应用或插件）
   if (showSearchResults.value) {
+    const totalResults = apps.value.length + matchedPlugins.value.length;
+    
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      selectedIndex.value = Math.min(selectedIndex.value + 1, apps.value.length - 1);
+      selectedIndex.value = Math.min(selectedIndex.value + 1, totalResults - 1);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
-    } else if (e.key === "Enter" && apps.value.length > 0) {
-      handleSelect(apps.value[selectedIndex.value]);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      // 如果选中的是应用
+      if (selectedIndex.value < apps.value.length) {
+        handleSelect(apps.value[selectedIndex.value]);
+      }
+      // 如果选中的是插件
+      else {
+        const pluginIndex = selectedIndex.value - apps.value.length;
+        if (pluginIndex < matchedPlugins.value.length) {
+          selectPlugin(matchedPlugins.value[pluginIndex]);
+        }
+      }
     }
   }
-  // 如果显示插件推荐（没有应用结果但有匹配的插件）
-  else if (showPluginRecommendations.value) {
-    if (e.key === "Enter" && matchedPlugins.value.length > 0) {
+  // 如果显示智能推荐
+  else if (showSmartRecommendations.value) {
+    if (e.key === "Enter" && smartRecommendedPlugins.value.length > 0) {
       e.preventDefault();
-      // 打开第一个匹配的插件
-      selectPlugin(matchedPlugins.value[0]);
+      // 打开第一个推荐的插件
+      selectPlugin(smartRecommendedPlugins.value[0]);
     }
   }
   
@@ -325,6 +384,19 @@ function closeJsonEditor() {
   nextTick(() => focusInput());
 }
 
+function openTimestamp() {
+  showTimestamp.value = true;
+  searchQuery.value = "";
+  apps.value = [];
+  saveCurrentState(); // 保存状态
+}
+
+function closeTimestamp() {
+  showTimestamp.value = false;
+  saveCurrentState(); // 保存当前状态（主页面）
+  nextTick(() => focusInput());
+}
+
 // 选择插件
 function selectPlugin(plugin: Plugin) {
   // 根据插件 ID 执行对应操作
@@ -337,6 +409,9 @@ function selectPlugin(plugin: Plugin) {
       break;
     case 'json':
       openJsonEditor();
+      break;
+    case 'timestamp':
+      openTimestamp();
       break;
     default:
       alert(`${plugin.name} 开发中...`);
@@ -372,6 +447,9 @@ onMounted(async () => {
       case 'memo':
         showMemo.value = true;
         break;
+      case 'timestamp':
+        showTimestamp.value = true;
+        break;
     }
     return; // 不执行后续的初始化逻辑
   }
@@ -394,6 +472,7 @@ onMounted(async () => {
     showClipboard.value = false;
     showMemo.value = false;
     showJsonEditor.value = false;
+    showTimestamp.value = false;
     saveCurrentState(); // 保存当前状态（主页面）
     nextTick(() => focusInput());
   });
@@ -419,6 +498,11 @@ onMounted(async () => {
   
   unlistenFocus = await currentWindow.onFocusChanged(({ payload: focused }) => {
     if (!focused) {
+      // 如果窗口被固定，不自动隐藏
+      if (isPinned.value) {
+        return;
+      }
+      
       // 只有在窗口显示超过 300ms 后才允许自动隐藏
       const timeSinceShow = Date.now() - lastShowTime;
       if (timeSinceShow > 300) {
@@ -451,8 +535,11 @@ onUnmounted(() => {
 
 <template>
   <div class="app-container">
+    <!-- 时间戳转换插件 -->
+    <TimestampPlugin v-if="showTimestamp" @close="closeTimestamp" />
+
     <!-- JSON 编辑器插件 -->
-    <JsonEditorPlugin v-if="showJsonEditor" @close="closeJsonEditor" />
+    <JsonEditorPlugin v-else-if="showJsonEditor" @close="closeJsonEditor" />
 
     <!-- 剪贴板插件 -->
     <ClipboardPlugin v-else-if="showClipboard" @close="closeClipboard" />
@@ -479,6 +566,17 @@ onUnmounted(() => {
           autocomplete="off"
           spellcheck="false"
         />
+        <button 
+          class="pin-icon" 
+          :class="{ pinned: isPinned }"
+          title="固定窗口" 
+          @click="togglePin"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5"/>
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+          </svg>
+        </button>
         <button class="settings-icon" title="设置" @click="openSettings">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
@@ -489,24 +587,46 @@ onUnmounted(() => {
       </div>
 
       <!-- 搜索结果 -->
-      <PluginList
-        v-if="showSearchResults"
-        :apps="apps"
-        :selected-index="selectedIndex"
-        @select="handleSelect"
-      />
+      <div v-if="showSearchResults" class="search-results-container">
+        <!-- 应用结果 -->
+        <PluginList
+          v-if="apps.length > 0"
+          :apps="apps"
+          :selected-index="selectedIndex"
+          @select="handleSelect"
+        />
+        
+        <!-- 插件结果 -->
+        <div v-if="matchedPlugins.length > 0" class="plugin-results">
+          <div class="results-header">
+            <h3>匹配的插件</h3>
+          </div>
+          <div class="plugin-results-grid">
+            <div
+              v-for="plugin in matchedPlugins"
+              :key="plugin.id"
+              class="plugin-result-item"
+              :style="{ '--gradient': plugin.gradient }"
+              @click="selectPlugin(plugin)"
+            >
+              <div class="plugin-icon-medium">{{ plugin.icon }}</div>
+              <div class="plugin-name-medium">{{ plugin.name }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <!-- 插件推荐（没有应用结果时） -->
-      <div v-else-if="showPluginRecommendations" class="plugin-recommendations">
+      <!-- 智能推荐（什么都没匹配到时） -->
+      <div v-else-if="showSmartRecommendations" class="plugin-recommendations">
         <div class="recommendations-header">
-          <h3>匹配推荐</h3>
-          <span class="hint-text">AI 制作新应用 ></span>
+          <h3>智能推荐</h3>
+          <span class="hint-text">没找到？试试这些 ></span>
         </div>
         
         <div class="recommendations-content">
           <div class="recommendations-grid">
             <div
-              v-for="plugin in matchedPlugins"
+              v-for="plugin in smartRecommendedPlugins"
               :key="plugin.id"
               class="recommendation-item"
               :style="{ '--gradient': plugin.gradient }"
@@ -623,6 +743,43 @@ onUnmounted(() => {
 
 .search-input::placeholder {
   color: rgba(255, 255, 255, 0.45);
+}
+
+.pin-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  -webkit-app-region: no-drag;
+}
+
+.pin-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+.pin-icon.pinned {
+  background: #007AFF;
+  border-color: #007AFF;
+  color: #fff;
+}
+
+.pin-icon.pinned:hover {
+  background: #0051D5;
+  border-color: #0051D5;
+}
+
+.pin-icon:active {
+  transform: translateY(0) scale(0.95);
 }
 
 .settings-icon {
@@ -834,6 +991,83 @@ onUnmounted(() => {
   padding: 2px 8px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 10px;
+}
+
+/* 搜索结果容器 */
+.search-results-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* 插件搜索结果 */
+.plugin-results {
+  padding: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.results-header {
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.results-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.plugin-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.plugin-result-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.plugin-result-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.plugin-result-item:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.plugin-icon-medium {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  border-radius: 12px;
+  background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.plugin-name-medium {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  text-align: center;
+  line-height: 1.4;
 }
 
 /* 插件推荐 - macOS 风格 */

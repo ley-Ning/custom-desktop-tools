@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  getMemos,
+  addMemo,
+  updateMemo,
+  deleteMemo,
+  toggleMemoPinned,
+  type MemoItem,
+} from "../db";
 
 const emit = defineEmits<{
   close: [];
 }>();
-
-interface MemoItem {
-  id: string;
-  title: string;
-  content: string;
-  tags: string[];
-  timestamp: number;
-  updated_at: number;
-  pinned: boolean;
-}
 
 const memos = ref<MemoItem[]>([]);
 const searchQuery = ref("");
@@ -30,6 +28,14 @@ const memoForm = ref({
 
 const tagInput = ref("");
 
+// 自动同步相关
+const yxbjConfigured = ref(false);
+const autoSyncEnabled = ref(true); // 自动同步开关
+const syncStatus = ref<"idle" | "syncing" | "success" | "error">("idle");
+const lastSyncTime = ref<number>(0);
+let syncTimer: number | null = null;
+let idleTimer: number | null = null;
+
 // 过滤后的备忘录
 const filteredMemos = computed(() => {
   let items = memos.value;
@@ -42,18 +48,26 @@ const filteredMemos = computed(() => {
     );
   }
   
-  // 置顶的排在前面
-  return items.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return b.updated_at - a.updated_at;
-  });
+  return items;
 });
+
+// 检查印象笔记是否配置
+async function checkYxbjConfig() {
+  try {
+    const configStr = await invoke<string>("load_mcp_config");
+    const config = JSON.parse(configStr);
+    yxbjConfigured.value = !!config.mcpServers?.["yxbj-mcp"];
+    console.log("YXBJ configured:", yxbjConfigured.value);
+  } catch (e) {
+    console.error("Failed to check YXBJ config:", e);
+    yxbjConfigured.value = false;
+  }
+}
 
 // 加载备忘录
 async function loadMemos() {
   try {
-    memos.value = await invoke<MemoItem[]>("get_memos");
+    memos.value = await getMemos();
   } catch (e) {
     console.error("Failed to load memos:", e);
   }
@@ -81,7 +95,7 @@ function editMemo(memo: MemoItem) {
   showEditor.value = true;
 }
 
-// 保存备忘录
+// 保存备忘录（始终保存到本地）
 async function saveMemo() {
   if (!memoForm.value.title.trim()) {
     alert("请输入标题");
@@ -90,16 +104,15 @@ async function saveMemo() {
 
   try {
     if (editingMemo.value) {
-      // 更新
-      await invoke("update_memo", {
-        id: editingMemo.value.id,
+      // 更新本地
+      await updateMemo(editingMemo.value.id, {
         title: memoForm.value.title,
         content: memoForm.value.content,
         tags: memoForm.value.tags,
       });
     } else {
-      // 新建
-      await invoke("add_memo", {
+      // 新建到本地
+      await addMemo({
         title: memoForm.value.title,
         content: memoForm.value.content,
         tags: memoForm.value.tags,
@@ -108,17 +121,99 @@ async function saveMemo() {
     
     showEditor.value = false;
     await loadMemos();
+    
+    // 触发自动同步
+    if (yxbjConfigured.value && autoSyncEnabled.value) {
+      scheduleSync();
+    }
   } catch (e) {
     console.error("Failed to save memo:", e);
     alert("保存失败");
   }
 }
 
+// 同步到印象笔记
+async function syncToYxbj() {
+  if (!yxbjConfigured.value || !autoSyncEnabled.value) {
+    return;
+  }
+
+  syncStatus.value = "syncing";
+  
+  try {
+    // 获取所有本地笔记
+    const allMemos = await getMemos();
+    
+    // 同步每条笔记（这里简化处理，实际应该记录哪些已同步）
+    for (const memo of allMemos) {
+      try {
+        await invoke<string>("save_memo_to_yxbj", {
+          title: memo.title,
+          content: memo.content,
+          tags: memo.tags,
+        });
+      } catch (e) {
+        console.error(`Failed to sync memo ${memo.id}:`, e);
+      }
+    }
+    
+    syncStatus.value = "success";
+    lastSyncTime.value = Date.now();
+    
+    // 3秒后重置状态
+    setTimeout(() => {
+      if (syncStatus.value === "success") {
+        syncStatus.value = "idle";
+      }
+    }, 3000);
+  } catch (e) {
+    console.error("Failed to sync to YXBJ:", e);
+    syncStatus.value = "error";
+    
+    // 5秒后重置状态
+    setTimeout(() => {
+      if (syncStatus.value === "error") {
+        syncStatus.value = "idle";
+      }
+    }, 5000);
+  }
+}
+
+// 调度同步（用户停止操作后 3 秒执行）
+function scheduleSync() {
+  // 清除之前的定时器
+  if (syncTimer) {
+    clearTimeout(syncTimer);
+  }
+  
+  // 3秒后执行同步
+  syncTimer = window.setTimeout(() => {
+    syncToYxbj();
+  }, 3000);
+}
+
+// 监听编辑器内容变化，重置空闲计时器
+watch([() => memoForm.value.title, () => memoForm.value.content], () => {
+  if (showEditor.value) {
+    // 用户正在编辑，重置空闲计时器
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+    }
+    
+    // 5秒无操作后触发同步
+    idleTimer = window.setTimeout(() => {
+      if (yxbjConfigured.value && autoSyncEnabled.value) {
+        scheduleSync();
+      }
+    }, 5000);
+  }
+});
+
 // 删除备忘录
-async function deleteMemo(id: string) {
+async function deleteMemoItem(id: string) {
   if (confirm("确定要删除这条备忘录吗？")) {
     try {
-      await invoke("delete_memo", { id });
+      await deleteMemo(id);
       await loadMemos();
     } catch (e) {
       console.error("Failed to delete memo:", e);
@@ -129,7 +224,7 @@ async function deleteMemo(id: string) {
 // 切换置顶
 async function togglePin(id: string) {
   try {
-    await invoke("toggle_memo_pin", { id });
+    await toggleMemoPinned(id);
     await loadMemos();
   } catch (e) {
     console.error("Failed to toggle pin:", e);
@@ -162,8 +257,27 @@ function formatTime(timestamp: number): string {
   });
 }
 
+// 格式化同步时间
+function formatSyncTime(): string {
+  if (!lastSyncTime.value) return "从未同步";
+  
+  const now = Date.now();
+  const diff = now - lastSyncTime.value;
+  
+  if (diff < 60000) return "刚刚";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+  return `${Math.floor(diff / 86400000)} 天前`;
+}
+
 onMounted(async () => {
   await loadMemos();
+  await checkYxbjConfig();
+});
+
+onUnmounted(() => {
+  if (syncTimer) clearTimeout(syncTimer);
+  if (idleTimer) clearTimeout(idleTimer);
 });
 </script>
 
@@ -183,8 +297,45 @@ onMounted(async () => {
           </svg>
           <span class="plugin-title">备忘快贴</span>
           <span class="item-count">{{ filteredMemos.length }} 条</span>
+          
+          <!-- 同步状态指示器 -->
+          <div v-if="yxbjConfigured && autoSyncEnabled" class="sync-indicator" :class="syncStatus">
+            <svg v-if="syncStatus === 'syncing'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            <svg v-else-if="syncStatus === 'success'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <svg v-else-if="syncStatus === 'error'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+              <path d="M2 17l10 5 10-5"/>
+              <path d="M2 12l10 5 10-5"/>
+            </svg>
+            <span class="sync-text">
+              {{ syncStatus === 'syncing' ? '同步中...' : 
+                 syncStatus === 'success' ? '已同步' : 
+                 syncStatus === 'error' ? '同步失败' : 
+                 formatSyncTime() }}
+            </span>
+          </div>
         </div>
         <div class="header-actions">
+          <button 
+            v-if="yxbjConfigured" 
+            class="action-btn sync-btn" 
+            @click="syncToYxbj" 
+            :disabled="syncStatus === 'syncing'"
+            title="立即同步到印象笔记"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ spin: syncStatus === 'syncing' }">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          </button>
           <button class="action-btn primary" @click="createNewMemo" title="新建备忘录">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"/>
@@ -243,7 +394,7 @@ onMounted(async () => {
               </button>
               <button
                 class="memo-action-btn delete-btn"
-                @click.stop="deleteMemo(memo.id)"
+                @click.stop="deleteMemoItem(memo.id)"
                 title="删除"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -260,7 +411,7 @@ onMounted(async () => {
             <div class="memo-tags">
               <span v-for="tag in memo.tags" :key="tag" class="tag">{{ tag }}</span>
             </div>
-            <span class="memo-time">{{ formatTime(memo.updated_at) }}</span>
+            <span class="memo-time">{{ formatTime(memo.updatedAt) }}</span>
           </div>
         </div>
 
@@ -374,6 +525,51 @@ onMounted(async () => {
   border-radius: 10px;
 }
 
+/* 同步状态指示器 */
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #2b2b2b;
+  border-radius: 10px;
+  font-size: 11px;
+  color: #888;
+}
+
+.sync-indicator.syncing {
+  color: #5a9fd4;
+}
+
+.sync-indicator.success {
+  color: #27ae60;
+}
+
+.sync-indicator.error {
+  color: #e74c3c;
+}
+
+.sync-indicator svg {
+  flex-shrink: 0;
+}
+
+.sync-text {
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -410,6 +606,23 @@ onMounted(async () => {
 .action-btn.primary:hover {
   background: #6aafed;
   border-color: #6aafed;
+}
+
+.action-btn.sync-btn {
+  background: transparent;
+  color: #888;
+  border-color: #4a4a4a;
+}
+
+.action-btn.sync-btn:hover:not(:disabled) {
+  background: #4a4a4a;
+  color: #5a9fd4;
+  border-color: #5a5a5a;
+}
+
+.action-btn.sync-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-btn.close-btn:hover {

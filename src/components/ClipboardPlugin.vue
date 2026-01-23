@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  getClipboardHistory,
+  addClipboardItem,
+  deleteClipboardItem,
+  clearClipboardHistory,
+  toggleClipboardFavorite,
+  type ClipboardItem,
+} from "../db";
 
 const emit = defineEmits<{
   close: [];
 }>();
-
-interface ClipboardItem {
-  id: string;
-  content: string;
-  content_type: string; // "text", "image", "file"
-  timestamp: number;
-  favorite: boolean;
-  file_path?: string; // 文件路径（用于图片和视频）
-  file_size?: number; // 文件大小（字节）
-}
 
 const clipboardHistory = ref<ClipboardItem[]>([]);
 const searchQuery = ref("");
@@ -43,7 +41,7 @@ const filteredHistory = computed(() => {
 // 加载剪贴板历史
 async function loadHistory() {
   try {
-    clipboardHistory.value = await invoke<ClipboardItem[]>("get_clipboard_history");
+    clipboardHistory.value = await getClipboardHistory();
   } catch (e) {
     console.error("Failed to load clipboard history:", e);
   }
@@ -63,7 +61,7 @@ async function copyToClipboard(item: ClipboardItem) {
 // 删除项
 async function deleteItem(id: string) {
   try {
-    await invoke("delete_clipboard_item", { id });
+    await deleteClipboardItem(id);
     await loadHistory();
   } catch (e) {
     console.error("Failed to delete item:", e);
@@ -74,7 +72,7 @@ async function deleteItem(id: string) {
 async function clearHistory() {
   if (confirm("确定要清空所有剪贴板历史吗？")) {
     try {
-      await invoke("clear_clipboard_history");
+      await clearClipboardHistory();
       await loadHistory();
     } catch (e) {
       console.error("Failed to clear history:", e);
@@ -85,7 +83,7 @@ async function clearHistory() {
 // 切换收藏
 async function toggleFavorite(id: string) {
   try {
-    await invoke("toggle_clipboard_favorite", { id });
+    await toggleClipboardFavorite(id);
     await loadHistory();
   } catch (e) {
     console.error("Failed to toggle favorite:", e);
@@ -101,7 +99,7 @@ async function checkClipboard() {
     const content = await invoke<string>("read_clipboard_text");
     if (content && content !== lastClipboardContent && content.trim()) {
       lastClipboardContent = content;
-      await invoke("add_clipboard_item", {
+      await addClipboardItem({
         content,
         contentType: "text",
       });
@@ -110,7 +108,6 @@ async function checkClipboard() {
     }
   } catch (e) {
     // 忽略读取错误
-    console.error("Clipboard check error:", e);
   }
 }
 
@@ -140,7 +137,7 @@ function formatFileSize(bytes?: number): string {
 
 // 格式化时间
 function formatTime(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
+  const date = new Date(timestamp);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   
@@ -180,8 +177,6 @@ onMounted(async () => {
   }
 });
 
-// 组件卸载时停止监听
-import { onUnmounted } from "vue";
 onUnmounted(() => {
   stopClipboardMonitor();
   window.removeEventListener("keydown", handleKeydown);
@@ -250,24 +245,24 @@ onUnmounted(() => {
         @click="copyToClipboard(item)"
       >
         <div class="item-content">
-          <div v-if="item.content_type === 'image'" class="content-image">
-            <img v-if="item.file_path" :src="item.file_path" alt="图片" />
+          <div v-if="item.contentType === 'image'" class="content-image">
+            <img v-if="item.filePath" :src="item.filePath" alt="图片" />
             <div class="image-info">
               <span class="type-badge">🖼️ 图片</span>
-              <span v-if="item.file_size" class="file-size">{{ formatFileSize(item.file_size) }}</span>
+              <span v-if="item.fileSize" class="file-size">{{ formatFileSize(item.fileSize) }}</span>
             </div>
           </div>
-          <div v-else-if="item.content_type === 'file'" class="content-file">
+          <div v-else-if="item.contentType === 'file'" class="content-file">
             <div class="file-icon">📄</div>
             <div class="file-info">
               <div class="file-name">{{ item.content }}</div>
-              <span v-if="item.file_size" class="file-size">{{ formatFileSize(item.file_size) }}</span>
+              <span v-if="item.fileSize" class="file-size">{{ formatFileSize(item.fileSize) }}</span>
             </div>
           </div>
           <div v-else class="content-text">{{ item.content }}</div>
           <div class="item-meta">
             <span class="item-time">{{ formatTime(item.timestamp) }}</span>
-            <span class="item-type">{{ item.content_type }}</span>
+            <span class="item-type">{{ item.contentType }}</span>
           </div>
         </div>
         <div class="item-actions">

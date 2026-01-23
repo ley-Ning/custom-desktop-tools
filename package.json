@@ -17,8 +17,10 @@
         "@tauri-apps/api": "^2.0.0",
         "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
         "codemirror": "^6.0.2",
+        "dayjs": "^1.11.19",
         "idb": "^8.0.3",
         "lucide-vue-next": "^0.562.0",
+        "vanilla-jsoneditor": "^3.11.0",
         "vue": "^3.4.0"
     },
     "devDependencies": {

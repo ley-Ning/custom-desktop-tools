@@ -22,13 +22,6 @@ const isEditingShortcut = ref(false);
 const shortcutError = ref<string>("");
 const shortcutSuccess = ref<string>("");
 
-// 其他设置
-const enableSuperPanel = ref(true);
-const enableQuickTranslate = ref(true);
-const enableVoiceInput = ref(false);
-const enableAutoFix = ref(true);
-const longPressDelay = ref(300);
-
 // 数据统计
 const clipboardCount = ref(0);
 const memoCount = ref(0);
@@ -191,19 +184,19 @@ function handleShortcutInput(e: KeyboardEvent) {
     <div class="settings-body">
       <!-- 左侧导航 -->
       <div class="settings-sidebar">
-        <!-- 个人中心 -->
+        <!-- 偏好设置 -->
         <div class="sidebar-section">
-          <div class="section-title">个人中心</div>
+          <div class="section-title">偏好设置</div>
           <div
-            class="menu-item"
-            :class="{ active: selectedMenu === 'account' }"
-            @click="selectMenu('account')"
+            class="menu-item active-highlight"
+            :class="{ active: selectedMenu === 'settings' }"
+            @click="selectMenu('settings')"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="8" r="4"/>
-              <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243M9.879 14.121l-4.243 4.243m0-10.606l4.243 4.243m4.242 4.242l4.243 4.243"/>
             </svg>
-            <span>我的账号</span>
+            <span>快捷键设置</span>
           </div>
           <div
             class="menu-item"
@@ -217,35 +210,6 @@ function handleShortcutInput(e: KeyboardEvent) {
               <rect x="3" y="14" width="7" height="7"/>
             </svg>
             <span>我的数据</span>
-          </div>
-          <div
-            class="menu-item"
-            :class="{ active: selectedMenu === 'team' }"
-            @click="selectMenu('team')"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-              <circle cx="17" cy="7" r="2"/>
-              <path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
-            </svg>
-            <span>团队空间</span>
-          </div>
-        </div>
-
-        <!-- 偏好设置 -->
-        <div class="sidebar-section">
-          <div class="section-title">偏好设置</div>
-          <div
-            class="menu-item active-highlight"
-            :class="{ active: selectedMenu === 'settings' }"
-            @click="selectMenu('settings')"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243M9.879 14.121l-4.243 4.243m0-10.606l4.243 4.243m4.242 4.242l4.243 4.243"/>
-            </svg>
-            <span>设置</span>
           </div>
           <div
             class="menu-item"
@@ -273,51 +237,16 @@ function handleShortcutInput(e: KeyboardEvent) {
           </div>
           <div
             class="menu-item"
-            :class="{ active: selectedMenu === 'local' }"
-            @click="selectMenu('local')"
+            :class="{ active: selectedMenu === 'plugins' }"
+            @click="selectMenu('plugins')"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
             </svg>
-            <span>本地启动</span>
-          </div>
-          <div
-            class="menu-item"
-            :class="{ active: selectedMenu === 'shortcuts' }"
-            @click="selectMenu('shortcuts')"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M9 11l3 3L22 4"/>
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-            </svg>
-            <span>快捷方式</span>
-          </div>
-          <div
-            class="menu-item"
-            :class="{ active: selectedMenu === 'commands' }"
-            @click="selectMenu('commands')"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="4 17 10 11 4 5"/>
-              <line x1="12" y1="19" x2="20" y2="19"/>
-            </svg>
-            <span>所有指令</span>
-          </div>
-        </div>
-
-        <!-- 插件应用市场 -->
-        <div class="sidebar-section">
-          <div
-            class="menu-item"
-            :class="{ active: selectedMenu === 'market' }"
-            @click="emit('openMarket')"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="9" cy="21" r="1"/>
-              <circle cx="20" cy="21" r="1"/>
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-            </svg>
-            <span>插件应用市场</span>
+            <span>插件</span>
           </div>
         </div>
       </div>
@@ -326,12 +255,12 @@ function handleShortcutInput(e: KeyboardEvent) {
       <div class="settings-content">
         <!-- 设置面板 -->
         <div v-if="selectedMenu === 'settings'" class="content-panel">
-          <h2 class="panel-title">使用偏好</h2>
+          <h2 class="panel-title">快捷键设置</h2>
 
           <!-- 搜索框快捷键 -->
           <div class="setting-group">
             <div class="setting-label">
-              <span class="label-text">搜索框快捷键</span>
+              <span class="label-text">全局唤醒快捷键</span>
             </div>
             <div class="setting-control">
               <div v-if="!isEditingShortcut" class="shortcut-display">
@@ -357,97 +286,9 @@ function handleShortcutInput(e: KeyboardEvent) {
             </div>
           </div>
 
-          <div class="divider"></div>
-
-          <h2 class="panel-title">超级面板</h2>
-
-          <!-- 启用超级面板 -->
-          <div class="setting-group">
-            <div class="setting-label">
-              <span class="label-text">启用超级面板</span>
-            </div>
-            <div class="setting-control">
-              <label class="toggle-switch">
-                <input v-model="enableSuperPanel" type="checkbox">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 鼠标按键弹出 -->
-          <div class="setting-group">
-            <div class="setting-label">
-              <span class="label-text">鼠标按键弹出</span>
-            </div>
-            <div class="setting-control">
-              <select class="select-input">
-                <option>长按鼠标右键</option>
-                <option>长按鼠标左键</option>
-                <option>长按鼠标中键</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- 长按毫秒响应 -->
-          <div class="setting-group">
-            <div class="setting-label">
-              <span class="label-text">长按毫秒响应</span>
-            </div>
-            <div class="setting-control">
-              <input
-                v-model="longPressDelay"
-                type="range"
-                min="100"
-                max="500"
-                step="50"
-                class="range-input"
-              >
-              <span class="range-value">{{ longPressDelay }} 毫秒</span>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- 英文快速翻译 -->
-          <div class="setting-group">
-            <div class="setting-label">
-              <span class="label-text">英文快速翻译</span>
-              <span class="label-hint">?</span>
-            </div>
-            <div class="setting-control">
-              <label class="toggle-switch">
-                <input v-model="enableQuickTranslate" type="checkbox">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 语音交互 -->
-          <div class="setting-group">
-            <div class="setting-label">
-              <span class="label-text">语音交互</span>
-              <span class="label-hint">?</span>
-            </div>
-            <div class="setting-control">
-              <label class="toggle-switch">
-                <input v-model="enableVoiceInput" type="checkbox">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <!-- 自动固定 -->
-          <div class="setting-group">
-            <div class="setting-label">
-              <span class="label-text">自动固定</span>
-              <span class="label-hint">?</span>
-            </div>
-            <div class="setting-control">
-              <label class="toggle-switch">
-                <input v-model="enableAutoFix" type="checkbox">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
+          <div class="setting-info">
+            <p>快捷键用于在任何地方快速唤醒应用</p>
+            <p>建议使用 Alt+Space 或 Cmd+Space 等组合键</p>
           </div>
         </div>
 
@@ -528,6 +369,81 @@ function handleShortcutInput(e: KeyboardEvent) {
         <!-- MCP 配置面板 -->
         <div v-else-if="selectedMenu === 'mcp'" class="content-panel">
           <McpSettings />
+        </div>
+
+        <!-- 插件管理面板 -->
+        <div v-else-if="selectedMenu === 'plugins'" class="content-panel">
+          <div class="mcp-header">
+            <div class="header-info">
+              <h2 class="panel-title">插件管理</h2>
+              <p class="panel-subtitle">
+                管理已安装的插件，启用或禁用功能
+              </p>
+            </div>
+          </div>
+
+          <!-- 统计卡片 -->
+          <div class="mcp-stats">
+            <div class="stat-card">
+              <div class="stat-value">2</div>
+              <div class="stat-label">总插件数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">2</div>
+              <div class="stat-label">已启用</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">0</div>
+              <div class="stat-label">已禁用</div>
+            </div>
+          </div>
+
+          <!-- 插件列表 -->
+          <div class="server-list">
+            <div class="server-item">
+              <div class="server-header">
+                <div class="plugin-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
+                  📋
+                </div>
+                <div class="server-info">
+                  <div class="server-name">
+                    <span class="status-dot active"></span>
+                    剪贴板历史
+                  </div>
+                  <div class="server-command">管理和搜索剪贴板历史记录</div>
+                </div>
+                <div class="server-actions">
+                  <button class="btn-icon" title="已启用">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="server-item">
+              <div class="server-header">
+                <div class="plugin-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)">
+                  📝
+                </div>
+                <div class="server-info">
+                  <div class="server-name">
+                    <span class="status-dot active"></span>
+                    备忘快贴
+                  </div>
+                  <div class="server-command">快速保存和粘贴常用文本</div>
+                </div>
+                <div class="server-actions">
+                  <button class="btn-icon" title="已启用">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 其他菜单的占位内容 -->
@@ -1118,5 +1034,153 @@ input:checked + .toggle-slider:before {
 
 .info-list li {
   margin-bottom: 8px;
+}
+
+.setting-info {
+  margin-top: 24px;
+  padding: 16px;
+  background: #323232;
+  border: 1px solid #4a4a4a;
+  border-radius: 8px;
+}
+
+.setting-info p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.6;
+}
+
+.setting-info p:last-child {
+  margin-bottom: 0;
+}
+
+/* 插件图标 */
+.plugin-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* MCP 样式（用于插件页面） */
+.mcp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.header-info {
+  flex: 1;
+}
+
+.mcp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #5a9fd4;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.server-item {
+  background: #323232;
+  border: 1px solid #4a4a4a;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.server-item:hover {
+  border-color: #5a5a5a;
+}
+
+.server-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 16px;
+}
+
+.server-info {
+  flex: 1;
+}
+
+.server-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin-bottom: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.status-dot.active {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
+
+.server-command {
+  font-size: 12px;
+  color: #888;
+}
+
+.server-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #4a4a4a;
+  border-radius: 6px;
+  color: #b0b0b0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background: #3a3a3a;
+  border-color: #5a5a5a;
+  color: #e0e0e0;
 }
 </style>

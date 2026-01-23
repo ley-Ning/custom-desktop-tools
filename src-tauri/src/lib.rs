@@ -495,7 +495,9 @@ pub fn run() {
             save_mcp_config,
             load_ai_config,
             save_ai_config,
-            open_plugin_window
+            open_plugin_window,
+            call_mcp_tool,
+            save_memo_to_yxbj
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -526,23 +528,6 @@ struct MemoItem {
     timestamp: i64,
     updated_at: i64,
     pinned: bool,
-}
-
-/// 插件配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PluginItem {
-    id: String,
-    name: String,
-    icon: String,
-    gradient: String,
-    keywords: Vec<String>,
-    description: String,
-    enabled: bool,
-    builtin: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    author: Option<String>,
 }
 
 /// 获取剪贴板历史
@@ -927,4 +912,138 @@ async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), Str
     .map_err(|e| format!("创建窗口失败: {}", e))?;
     
     Ok(())
+}
+
+/// MCP 工具调用参数
+#[derive(Debug, Serialize, Deserialize)]
+struct McpToolCall {
+    server_name: String,
+    tool_name: String,
+    arguments: serde_json::Value,
+}
+
+/// 调用 MCP 工具
+#[command]
+async fn call_mcp_tool(
+    server_name: String,
+    tool_name: String,
+    arguments: serde_json::Value,
+    _app: AppHandle,
+) -> Result<serde_json::Value, String> {
+    // 读取 MCP 配置
+    let config_str = load_mcp_config().await?;
+    let config: serde_json::Value = serde_json::from_str(&config_str)
+        .map_err(|e| format!("解析 MCP 配置失败: {}", e))?;
+    
+    // 获取服务器配置
+    let servers = config.get("mcpServers")
+        .and_then(|s| s.as_object())
+        .ok_or("MCP 配置中没有 mcpServers")?;
+    
+    let server_config = servers.get(&server_name)
+        .ok_or(format!("未找到 MCP 服务器: {}", server_name))?;
+    
+    let command = server_config.get("command")
+        .and_then(|c| c.as_str())
+        .ok_or("服务器配置缺少 command")?;
+    
+    let args = server_config.get("args")
+        .and_then(|a| a.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect::<Vec<_>>())
+        .unwrap_or_default();
+    
+    // 构建 MCP 请求
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments
+        }
+    });
+    
+    // 执行命令
+    use std::process::{Command, Stdio};
+    use std::io::{Write, BufRead, BufReader};
+    
+    let mut child = Command::new(command)
+        .args(&args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("启动 MCP 服务器失败: {}", e))?;
+    
+    // 写入请求
+    if let Some(mut stdin) = child.stdin.take() {
+        let request_str = serde_json::to_string(&request)
+            .map_err(|e| format!("序列化请求失败: {}", e))?;
+        writeln!(stdin, "{}", request_str)
+            .map_err(|e| format!("写入请求失败: {}", e))?;
+    }
+    
+    // 读取响应
+    let stdout = child.stdout.take()
+        .ok_or("无法获取 stdout")?;
+    let reader = BufReader::new(stdout);
+    
+    for line in reader.lines() {
+        let line = line.map_err(|e| format!("读取响应失败: {}", e))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        
+        let response: serde_json::Value = serde_json::from_str(&line)
+            .map_err(|e| format!("解析响应失败: {}", e))?;
+        
+        if let Some(error) = response.get("error") {
+            return Err(format!("MCP 工具调用失败: {}", error));
+        }
+        
+        if let Some(result) = response.get("result") {
+            return Ok(result.clone());
+        }
+    }
+    
+    Err("未收到有效响应".to_string())
+}
+
+/// 保存笔记到印象笔记
+#[command]
+async fn save_memo_to_yxbj(
+    title: String,
+    content: String,
+    tags: Vec<String>,
+    app: AppHandle,
+) -> Result<String, String> {
+    // 构建笔记内容（Markdown 格式）
+    let mut note_content = format!("# {}\n\n{}", title, content);
+    
+    if !tags.is_empty() {
+        note_content.push_str(&format!("\n\n---\n标签: {}", tags.join(", ")));
+    }
+    
+    // 调用印象笔记 MCP 工具
+    let arguments = serde_json::json!({
+        "title": title,
+        "content": note_content,
+        "tags": tags
+    });
+    
+    let result = call_mcp_tool(
+        "yxbj-mcp".to_string(),
+        "create_note".to_string(),
+        arguments,
+        app,
+    ).await?;
+    
+    // 提取笔记 ID
+    let note_id = result.get("noteId")
+        .or_else(|| result.get("id"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    
+    Ok(note_id)
 }

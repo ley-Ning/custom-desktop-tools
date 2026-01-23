@@ -120,7 +120,7 @@ async function initDefaultPlugins(db: IDBPDatabase<MyUToolsDB>) {
             gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
             keywords: ['时间', 'time', 'timestamp', '日期', 'shijian', 'sj', 'shijianchuo'],
             description: '时间戳与日期互转',
-            enabled: false,
+            enabled: true,
             builtin: true,
             version: '1.0.0',
             author: 'My uTools',
