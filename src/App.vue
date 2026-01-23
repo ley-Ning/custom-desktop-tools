@@ -103,6 +103,7 @@ async function loadPlugins() {
     await initDB(); // 确保数据库已初始化
     const plugins = await getEnabledPlugins();
     allPlugins.value = plugins;
+    console.log('Loaded plugins:', plugins.map(p => ({ id: p.id, name: p.name, keywords: p.keywords })));
   } catch (e) {
     console.error("Failed to load plugins:", e);
   }
@@ -114,6 +115,8 @@ async function loadPlugins() {
 const matchedPlugins = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return [];
+  
+  console.log('Searching for:', query, 'in plugins:', allPlugins.value.length);
   
   // 使用评分系统进行更精确的匹配
   const scored = allPlugins.value
@@ -152,6 +155,7 @@ const matchedPlugins = computed(() => {
     .sort((a, b) => b.score - a.score)
     .map(item => item.plugin);
   
+  console.log('Matched plugins:', scored.map(p => p.name));
   return scored;
 });
 

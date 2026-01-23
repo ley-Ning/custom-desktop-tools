@@ -8,10 +8,18 @@ interface MyUToolsDB extends DBSchema {
         value: Plugin;
         indexes: { 'by-enabled': boolean };
     };
+    clipboard: {
+        key: string;
+        value: any;
+    };
+    memos: {
+        key: string;
+        value: any;
+    };
 }
 
 const DB_NAME = 'my-utools-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // 增加版本号以触发升级
 
 let dbInstance: IDBPDatabase<MyUToolsDB> | null = null;
 
@@ -25,6 +33,16 @@ export async function initDB(): Promise<IDBPDatabase<MyUToolsDB>> {
             if (!db.objectStoreNames.contains('plugins')) {
                 const pluginStore = db.createObjectStore('plugins', { keyPath: 'id' });
                 pluginStore.createIndex('by-enabled', 'enabled');
+            }
+
+            // 创建剪贴板表
+            if (!db.objectStoreNames.contains('clipboard')) {
+                db.createObjectStore('clipboard', { keyPath: 'id' });
+            }
+
+            // 创建备忘录表
+            if (!db.objectStoreNames.contains('memos')) {
+                db.createObjectStore('memos', { keyPath: 'id' });
             }
         },
     });
@@ -204,4 +222,32 @@ export async function searchPlugins(query: string): Promise<Plugin[]> {
             return keywordLower.includes(queryLower) || queryLower.includes(keywordLower);
         });
     });
+}
+
+// 获取剪贴板历史
+export async function getClipboardHistory(): Promise<any[]> {
+    const db = await initDB();
+    return db.getAll('clipboard');
+}
+
+// 获取备忘录列表
+export async function getMemos(): Promise<any[]> {
+    const db = await initDB();
+    return db.getAll('memos');
+}
+
+// 开发工具：清除数据库（仅用于开发调试）
+export async function clearDatabase(): Promise<void> {
+    if (dbInstance) {
+        dbInstance.close();
+        dbInstance = null;
+    }
+    const { deleteDB } = await import('idb');
+    await deleteDB(DB_NAME);
+    console.log('Database cleared. Please refresh the page.');
+}
+
+// 开发工具：在控制台暴露清除函数
+if (typeof window !== 'undefined') {
+    (window as any).clearDB = clearDatabase;
 }
