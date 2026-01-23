@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>生成图标</title>
+</head>
+<body>
+    <h2>iOS 风格图标生成器</h2>
+    <canvas id="canvas"></canvas>
+    <div id="downloads"></div>
+    
+    <script>
+        const sizes = [32, 128, 256];
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const downloads = document.getElementById('downloads');
+        
+        // 创建 iOS 风格图标
+        function generateIcon(size) {
+            canvas.width = size;
+            canvas.height = size;
+            
+            // 背景渐变
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            
+            // 圆角矩形背景
+            const radius = size * 0.225; // iOS 圆角比例
+            ctx.fillStyle = gradient;
+            roundRect(ctx, 0, 0, size, size, radius);
+            ctx.fill();
+            
+            // 高光效果
+            const highlightGradient = ctx.createRadialGradient(size/2, size*0.2, 0, size/2, size*0.2, size*0.4);
+            highlightGradient.addColorStop(0, 'rgba(255,255,255,0.3)');
+            highlightGradient.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = highlightGradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // 工具图标 - 扳手
+            ctx.save();
+            ctx.translate(size/2, size/2);
+            ctx.rotate(-Math.PI/6);
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            
+            // 扳手主体
+            roundRect(ctx, -size*0.08, -size*0.35, size*0.16, size*0.55, size*0.08);
+            ctx.fill();
+            
+            // 扳手头部
+            ctx.beginPath();
+            ctx.arc(0, -size*0.35, size*0.1, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 扳手手柄
+            roundRect(ctx, -size*0.12, size*0.12, size*0.24, size*0.16, size*0.03);
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // 螺丝刀
+            ctx.save();
+            ctx.translate(size/2, size/2);
+            ctx.rotate(Math.PI/6);
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            
+            // 螺丝刀主体
+            roundRect(ctx, -size*0.06, -size*0.39, size*0.12, size*0.59, size*0.06);
+            ctx.fill();
+            
+            // 螺丝刀头
+            ctx.beginPath();
+            ctx.moveTo(0, -size*0.43);
+            ctx.lineTo(-size*0.08, -size*0.35);
+            ctx.lineTo(size*0.08, -size*0.35);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 螺丝刀手柄
+            ctx.fillStyle = '#FFD700';
+            roundRect(ctx, -size*0.05, size*0.16, size*0.1, size*0.2, size*0.02);
+            ctx.fill();
+            
+            ctx.restore();
+            
+            // 中心装饰
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size*0.14, 0, Math.PI * 2);
+            ctx.fill();
+            
+            const centerGradient = ctx.createLinearGradient(size/2, size*0.36, size/2, size*0.64);
+            centerGradient.addColorStop(0, '#667eea');
+            centerGradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = centerGradient;
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size*0.1, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.beginPath();
+            ctx.arc(size/2, size/2, size*0.06, 0, Math.PI * 2);
+            ctx.fill();
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+        
+        // 生成所有尺寸
+        sizes.forEach(size => {
+            const dataUrl = generateIcon(size);
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = `${size}x${size}.png`;
+            link.textContent = `下载 ${size}x${size}.png`;
+            link.style.display = 'block';
+            link.style.margin = '10px';
+            downloads.appendChild(link);
+        });
+        
+        // 生成 @2x 版本
+        const dataUrl256 = generateIcon(256);
+        const link256 = document.createElement('a');
+        link256.href = dataUrl256;
+        link256.download = '128x128@2x.png';
+        link256.textContent = '下载 128x128@2x.png';
+        link256.style.display = 'block';
+        link256.style.margin = '10px';
+        downloads.appendChild(link256);
+        
+        // 生成 icon.png
+        const dataUrl1024 = generateIcon(1024);
+        const linkIcon = document.createElement('a');
+        linkIcon.href = dataUrl1024;
+        linkIcon.download = 'icon.png';
+        linkIcon.textContent = '下载 icon.png (1024x1024)';
+        linkIcon.style.display = 'block';
+        linkIcon.style.margin = '10px';
+        downloads.appendChild(linkIcon);
+        
+        console.log('图标生成完成！请点击链接下载');
+    </script>
+</body>
+</html>

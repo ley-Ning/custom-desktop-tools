@@ -1,0 +1,57 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- iOS 风格背景 - 圆角矩形 -->
+  <defs>
+    <!-- 主渐变 - 蓝紫色 -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 工具渐变 -->
+    <linearGradient id="toolGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f0f0f0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 阴影滤镜 -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景圆角矩形 -->
+  <rect width="1024" height="1024" rx="230" fill="url(#bgGradient)"/>
+  
+  <!-- 顶部高光 -->
+  <ellipse cx="512" cy="200" rx="400" ry="120" fill="white" opacity="0.15"/>
+  
+  <!-- 工具图标组 -->
+  <g transform="translate(512, 512)" filter="url(#shadow)">
+    <!-- 扳手 -->
+    <g transform="rotate(-30)">
+      <rect x="-40" y="-180" width="80" height="280" rx="40" fill="url(#toolGradient)"/>
+      <circle cx="0" cy="-180" r="50" fill="url(#toolGradient)"/>
+      <rect x="-60" y="60" width="120" height="80" rx="15" fill="url(#toolGradient)"/>
+    </g>
+    
+    <!-- 螺丝刀 -->
+    <g transform="rotate(30)">
+      <rect x="-30" y="-200" width="60" height="300" rx="30" fill="url(#toolGradient)"/>
+      <polygon points="0,-220 -40,-180 40,-180" fill="url(#toolGradient)"/>
+      <rect x="-25" y="80" width="50" height="100" rx="10" fill="#FFD700"/>
+    </g>
+    
+    <!-- 中心装饰圆 -->
+    <circle cx="0" cy="0" r="70" fill="white" opacity="0.9"/>
+    <circle cx="0" cy="0" r="50" fill="url(#bgGradient)"/>
+    <circle cx="0" cy="0" r="30" fill="white" opacity="0.5"/>
+  </g>
+</svg>
