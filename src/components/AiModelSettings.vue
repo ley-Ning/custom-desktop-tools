@@ -1,17 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-
-interface AiModel {
-  id: string;
-  name: string;
-  provider: string;
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-  enabled: boolean;
-  isDefault: boolean;
-}
+import type { AiModel } from "../types";
 
 interface AiConfig {
   models: AiModel[];

@@ -10,8 +10,9 @@ import ClipboardPlugin from "./components/ClipboardPlugin.vue";
 import MemoPlugin from "./components/MemoPlugin.vue";
 import JsonEditorPlugin from "./components/JsonEditorPlugin.vue";
 import TimestampPlugin from "./components/TimestampPlugin.vue";
+import AiChatPlugin from "./components/AiChatPlugin.vue";
 import type { App, Plugin } from "./types";
-import { initDB, getEnabledPlugins, searchPlugins as dbSearchPlugins, getClipboardHistory, getMemos } from "./db";
+import { initDB, getEnabledPlugins, getClipboardHistory, getMemos } from "./db";
 
 // 插件定义（从 IndexedDB 加载）
 const allPlugins = ref<Plugin[]>([]);
@@ -27,6 +28,7 @@ const showClipboard = ref(false);
 const showMemo = ref(false);
 const showJsonEditor = ref(false);
 const showTimestamp = ref(false);
+const showAiChat = ref(false);
 const expandedRecent = ref(false);
 
 // 窗口固定状态
@@ -63,6 +65,7 @@ function saveCurrentState() {
     showMemo: showMemo.value,
     showJsonEditor: showJsonEditor.value,
     showTimestamp: showTimestamp.value,
+    showAiChat: showAiChat.value,
     expandedRecent: expandedRecent.value,
     isPinned: isPinned.value,
   };
@@ -81,6 +84,7 @@ function restoreLastState() {
       showMemo.value = state.showMemo || false;
       showJsonEditor.value = state.showJsonEditor || false;
       showTimestamp.value = state.showTimestamp || false;
+      showAiChat.value = state.showAiChat || false;
       expandedRecent.value = state.expandedRecent || false;
       isPinned.value = state.isPinned || false;
     }
@@ -266,7 +270,7 @@ async function handleSelect(app: App) {
 
 function handleKeydown(e: KeyboardEvent) {
   // 如果在设置界面、插件市场或插件中，ESC 返回主界面
-  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value) {
+  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value || showAiChat.value) {
     if (e.key === "Escape") {
       showSettings.value = false;
       showPluginMarket.value = false;
@@ -274,6 +278,7 @@ function handleKeydown(e: KeyboardEvent) {
       showMemo.value = false;
       showJsonEditor.value = false;
       showTimestamp.value = false;
+      showAiChat.value = false;
       saveCurrentState(); // 保存当前状态（主页面）
       nextTick(() => focusInput());
     }
@@ -401,6 +406,19 @@ function closeTimestamp() {
   nextTick(() => focusInput());
 }
 
+function openAiChat() {
+  showAiChat.value = true;
+  searchQuery.value = "";
+  apps.value = [];
+  saveCurrentState(); // 保存状态
+}
+
+function closeAiChat() {
+  showAiChat.value = false;
+  saveCurrentState(); // 保存当前状态（主页面）
+  nextTick(() => focusInput());
+}
+
 // 选择插件
 function selectPlugin(plugin: Plugin) {
   // 根据插件 ID 执行对应操作
@@ -416,6 +434,9 @@ function selectPlugin(plugin: Plugin) {
       break;
     case 'timestamp':
       openTimestamp();
+      break;
+    case 'ai':
+      openAiChat();
       break;
     default:
       alert(`${plugin.name} 开发中...`);
@@ -454,6 +475,9 @@ onMounted(async () => {
       case 'timestamp':
         showTimestamp.value = true;
         break;
+      case 'ai':
+        showAiChat.value = true;
+        break;
     }
     return; // 不执行后续的初始化逻辑
   }
@@ -477,6 +501,7 @@ onMounted(async () => {
     showMemo.value = false;
     showJsonEditor.value = false;
     showTimestamp.value = false;
+    showAiChat.value = false;
     saveCurrentState(); // 保存当前状态（主页面）
     nextTick(() => focusInput());
   });
@@ -541,6 +566,9 @@ onUnmounted(() => {
   <div class="app-container">
     <!-- 时间戳转换插件 -->
     <TimestampPlugin v-if="showTimestamp" @close="closeTimestamp" />
+
+    <!-- AI 对话插件 -->
+    <AiChatPlugin v-else-if="showAiChat" @close="closeAiChat" />
 
     <!-- JSON 编辑器插件 -->
     <JsonEditorPlugin v-else-if="showJsonEditor" @close="closeJsonEditor" />

@@ -7,6 +7,8 @@ use tauri_plugin_store::StoreExt;
 use std::sync::Mutex;
 use base64::prelude::*;
 
+mod ai_chat;
+
 /// 应用信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AppInfo {
@@ -347,6 +349,7 @@ pub fn run() {
                 current_shortcut: Arc::new(Mutex::new(None)),
             };
             app.manage(app_state);
+            app.manage(ai_chat::AiGeneration::default());
 
             // 创建托盘菜单
             let website_item = MenuItemBuilder::with_id("website", "My uTools 官网").build(app)?;
@@ -495,6 +498,12 @@ pub fn run() {
             save_mcp_config,
             load_ai_config,
             save_ai_config,
+            ai_chat::send_ai_message,
+            ai_chat::stop_ai_generation,
+            ai_chat::load_conversations,
+            ai_chat::save_conversation,
+            ai_chat::delete_conversation,
+            ai_chat::open_external_url,
             open_plugin_window,
             call_mcp_tool,
             save_memo_to_yxbj
@@ -839,7 +848,7 @@ async fn save_mcp_config(config: String) -> Result<(), String> {
 }
 
 /// 获取 AI 配置文件路径
-fn get_ai_config_path() -> Result<std::path::PathBuf, String> {
+pub(crate) fn get_ai_config_path() -> Result<std::path::PathBuf, String> {
     let home_dir = dirs::home_dir().ok_or("无法获取用户目录")?;
     let config_dir = home_dir.join(".local/share/com.lewen.my-utools");
     

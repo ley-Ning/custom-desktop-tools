@@ -27,3 +27,67 @@ export interface PluginConfig {
     keywords?: string[];
     description?: string;
 }
+
+// ===== AI 对话插件（与 src-tauri/src/ai_chat.rs 的结构一一对应，snake_case） =====
+
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+/** AI 模型配置（ai-config.json 中的条目） */
+export interface AiModel {
+    id: string;
+    name: string;
+    provider: string;
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    enabled: boolean;
+    isDefault: boolean;
+}
+
+/** 对话中的单条消息 */
+export interface AiChatMessage {
+    id: string;
+    role: MessageRole;
+    content: string;
+    timestamp: number;
+    tokens?: number;
+    error?: string;
+}
+
+/** 对话级设置 */
+export interface ConversationSettings {
+    system_prompt: string;
+    context_length: number;
+    temperature?: number;
+    max_tokens?: number;
+}
+
+/** 一次对话会话 */
+export interface Conversation {
+    id: string;
+    title: string;
+    messages: AiChatMessage[];
+    model_id: string;
+    created_at: number;
+    updated_at: number;
+    settings: ConversationSettings;
+}
+
+/** API 请求消息（仅 role + content） */
+export interface ApiChatMessage {
+    role: MessageRole;
+    content: string;
+}
+
+/** 后端 ai-message-chunk 事件负载 */
+export interface StreamChunkEvent {
+    message_id: string;
+    content: string;
+}
+
+/** 后端 ai-message-done 事件负载（status: ok | error | stopped） */
+export interface StreamDoneEvent {
+    message_id: string;
+    status: 'ok' | 'error' | 'stopped';
+    error?: string;
+}

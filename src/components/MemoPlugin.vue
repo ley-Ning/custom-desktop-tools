@@ -411,7 +411,7 @@ onUnmounted(() => {
             <div class="memo-tags">
               <span v-for="tag in memo.tags" :key="tag" class="tag">{{ tag }}</span>
             </div>
-            <span class="memo-time">{{ formatTime(memo.updatedAt) }}</span>
+            <span class="memo-time">{{ formatTime(memo.updated_at) }}</span>
           </div>
         </div>
 

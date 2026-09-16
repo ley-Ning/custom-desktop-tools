@@ -1,25 +1,22 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { invoke } from '@tauri-apps/api/core';
 import type { Plugin } from '../types';
 
+// 供组件直接从 "../db" 导入 Plugin 类型
+export type { Plugin };
+
 // 数据库 Schema 定义
+// 剪贴板/备忘录数据已迁移到 Rust 后端存储（clipboard.json / memos.json），
+// IndexedDB 仅保留插件注册表
 interface MyUToolsDB extends DBSchema {
     plugins: {
         key: string;
         value: Plugin;
-        indexes: { 'by-enabled': boolean };
-    };
-    clipboard: {
-        key: string;
-        value: any;
-    };
-    memos: {
-        key: string;
-        value: any;
     };
 }
 
 const DB_NAME = 'my-utools-db';
-const DB_VERSION = 2; // 增加版本号以触发升级
+const DB_VERSION = 2;
 
 let dbInstance: IDBPDatabase<MyUToolsDB> | null = null;
 
@@ -31,18 +28,7 @@ export async function initDB(): Promise<IDBPDatabase<MyUToolsDB>> {
         upgrade(db) {
             // 创建插件表
             if (!db.objectStoreNames.contains('plugins')) {
-                const pluginStore = db.createObjectStore('plugins', { keyPath: 'id' });
-                pluginStore.createIndex('by-enabled', 'enabled');
-            }
-
-            // 创建剪贴板表
-            if (!db.objectStoreNames.contains('clipboard')) {
-                db.createObjectStore('clipboard', { keyPath: 'id' });
-            }
-
-            // 创建备忘录表
-            if (!db.objectStoreNames.contains('memos')) {
-                db.createObjectStore('memos', { keyPath: 'id' });
+                db.createObjectStore('plugins', { keyPath: 'id' });
             }
         },
     });
@@ -100,9 +86,9 @@ async function initDefaultPlugins(db: IDBPDatabase<MyUToolsDB>) {
             name: 'AI 对话',
             icon: '🤖',
             gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-            keywords: ['ai', '对话', '聊天', 'chat', 'gpt', 'duihua'],
-            description: '与 AI 进行智能对话',
-            enabled: false,
+            keywords: ['ai', '对话', '聊天', 'chat', 'gpt', 'duihua', 'liaotian'],
+            description: '与 AI 进行智能对话，支持多会话与 Markdown 渲染',
+            enabled: true,
             builtin: true,
             version: '1.0.0',
             author: 'My uTools',
@@ -159,9 +145,11 @@ export async function getAllPlugins(): Promise<Plugin[]> {
 }
 
 // 获取已启用的插件
+// 注：不使用 IDB 索引查询（boolean 不是合法的 IDB key，getAllFromIndex 会抛 DataError）
 export async function getEnabledPlugins(): Promise<Plugin[]> {
     const db = await initDB();
-    return db.getAllFromIndex('plugins', 'by-enabled', true);
+    const all = await db.getAll('plugins');
+    return all.filter(plugin => plugin.enabled);
 }
 
 // 获取单个插件
@@ -224,16 +212,130 @@ export async function searchPlugins(query: string): Promise<Plugin[]> {
     });
 }
 
+// ===== 剪贴板历史（数据存放在 Rust 后端 clipboard.json） =====
+
+/** 剪贴板条目（camelCase，与组件约定一致；timestamp 为毫秒） */
+export interface ClipboardItem {
+    id: string;
+    content: string;
+    contentType: string;
+    timestamp: number;
+    favorite: boolean;
+    filePath?: string;
+    fileSize?: number;
+}
+
+/** Rust 后端的 snake_case 原始结构 */
+interface RawClipboardItem {
+    id: string;
+    content: string;
+    content_type: string;
+    timestamp: number; // 秒
+    favorite: boolean;
+    file_path?: string;
+    file_size?: number;
+}
+
+function mapClipboardItem(raw: RawClipboardItem): ClipboardItem {
+    return {
+        id: raw.id,
+        content: raw.content,
+        contentType: raw.content_type,
+        // 组件 formatTime 按毫秒处理，后端存的是秒
+        timestamp: raw.timestamp * 1000,
+        favorite: raw.favorite,
+        filePath: raw.file_path,
+        fileSize: raw.file_size,
+    };
+}
+
 // 获取剪贴板历史
-export async function getClipboardHistory(): Promise<any[]> {
-    const db = await initDB();
-    return db.getAll('clipboard');
+export async function getClipboardHistory(): Promise<ClipboardItem[]> {
+    try {
+        const raw = await invoke<RawClipboardItem[]>("get_clipboard_history");
+        return (raw || []).map(mapClipboardItem);
+    } catch (e) {
+        console.error("Failed to load clipboard history:", e);
+        return [];
+    }
+}
+
+// 添加剪贴板项
+export async function addClipboardItem(item: { content: string; contentType: string }): Promise<ClipboardItem | null> {
+    try {
+        const raw = await invoke<RawClipboardItem>("add_clipboard_item", {
+            content: item.content,
+            contentType: item.contentType,
+        });
+        return mapClipboardItem(raw);
+    } catch (e) {
+        console.error("Failed to add clipboard item:", e);
+        return null;
+    }
+}
+
+// 删除剪贴板项
+export async function deleteClipboardItem(id: string): Promise<void> {
+    await invoke("delete_clipboard_item", { id });
+}
+
+// 清空剪贴板历史
+export async function clearClipboardHistory(): Promise<void> {
+    await invoke("clear_clipboard_history");
+}
+
+// 切换剪贴板项收藏状态
+export async function toggleClipboardFavorite(id: string): Promise<void> {
+    await invoke("toggle_clipboard_favorite", { id });
+}
+
+// ===== 备忘录（数据存放在 Rust 后端 memos.json） =====
+
+/** 备忘录条目（字段与 Rust MemoItem 一致） */
+export interface MemoItem {
+    id: string;
+    title: string;
+    content: string;
+    tags: string[];
+    timestamp: number;
+    updated_at: number;
+    pinned: boolean;
 }
 
 // 获取备忘录列表
-export async function getMemos(): Promise<any[]> {
-    const db = await initDB();
-    return db.getAll('memos');
+export async function getMemos(): Promise<MemoItem[]> {
+    try {
+        const items = await invoke<MemoItem[]>("get_memos");
+        return items || [];
+    } catch (e) {
+        console.error("Failed to load memos:", e);
+        return [];
+    }
+}
+
+// 添加备忘录
+export async function addMemo(input: { title: string; content: string; tags: string[] }): Promise<MemoItem | null> {
+    try {
+        return await invoke<MemoItem>("add_memo", input);
+    } catch (e) {
+        console.error("Failed to add memo:", e);
+        return null;
+    }
+}
+
+// 更新备忘录
+export async function updateMemo(id: string, input: { title: string; content: string; tags: string[] }): Promise<void> {
+    await invoke("update_memo", { id, ...input });
+}
+
+// 删除备忘录
+export async function deleteMemo(id: string): Promise<void> {
+    await invoke("delete_memo", { id });
+}
+
+// 切换备忘录置顶状态
+export async function toggleMemoPinned(id: string): Promise<void> {
+    await invoke("toggle_memo_pin", { id });
 }
 
 // 开发工具：清除数据库（仅用于开发调试）

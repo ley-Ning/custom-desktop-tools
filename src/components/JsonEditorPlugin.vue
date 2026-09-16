@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from "vue";
-import { JSONEditor, Mode, type Content, type OnChangeStatus } from 'vanilla-jsoneditor';
+import { ref, onMounted, onUnmounted } from "vue";
+import { createJSONEditor, isContentValidationErrors, isJSONContent, isTextContent, Mode, type Content, type JsonEditor, type OnChangeStatus } from 'vanilla-jsoneditor';
 
 const emit = defineEmits<{
   close: [];
@@ -11,12 +11,12 @@ const searchPath = ref("");
 const searchResult = ref("");
 const errorMessage = ref("");
 
-let editor: JSONEditor | null = null;
+let editor: JsonEditor | null = null;
 
 // 初始化编辑器
 onMounted(() => {
   if (editorContainer.value) {
-    editor = new JSONEditor({
+    editor = createJSONEditor({
       target: editorContainer.value,
       props: {
         mode: Mode.tree,
@@ -41,10 +41,12 @@ onMounted(() => {
             }
           }, null, 2)
         },
-        onChange: (content: Content, previousContent: Content, status: OnChangeStatus) => {
+        onChange: (_content: Content, _previousContent: Content, status: OnChangeStatus) => {
           errorMessage.value = "";
-          if (status.contentErrors) {
-            errorMessage.value = status.contentErrors.validationErrors?.[0]?.message || "JSON 格式错误";
+          if (status.contentErrors && isContentValidationErrors(status.contentErrors)) {
+            errorMessage.value = status.contentErrors.validationErrors[0]?.message || "JSON 格式错误";
+          } else if (status.contentErrors) {
+            errorMessage.value = "JSON 格式错误";
           }
         }
       }
@@ -67,15 +69,16 @@ function searchByPath() {
 
   try {
     const content = editor.get();
-    if (!content.json) {
+    const json = isJSONContent(content) ? content.json : null;
+    if (!json) {
       searchResult.value = "请先输入有效的 JSON";
       return;
     }
 
     const path = searchPath.value.trim();
     const keys = path.split('.').filter(k => k);
-    
-    let result: any = content.json;
+
+    let result: any = json;
     for (const key of keys) {
       // 支持数组索引
       if (key.includes('[') && key.includes(']')) {
@@ -123,12 +126,13 @@ async function copyResult() {
 // 格式化 JSON
 function formatJson() {
   if (!editor) return;
-  
+
   try {
     const content = editor.get();
-    if (content.json) {
+    const json = isJSONContent(content) ? content.json : null;
+    if (json) {
       editor.set({
-        json: content.json
+        json: json
       });
     }
   } catch (e: any) {
@@ -139,12 +143,13 @@ function formatJson() {
 // 压缩 JSON
 function minifyJson() {
   if (!editor) return;
-  
+
   try {
     const content = editor.get();
-    if (content.json) {
+    const json = isJSONContent(content) ? content.json : null;
+    if (json) {
       editor.set({
-        text: JSON.stringify(content.json)
+        text: JSON.stringify(json)
       });
     }
   } catch (e: any) {
@@ -187,7 +192,9 @@ async function copyToClipboard() {
   
   try {
     const content = editor.get();
-    const text = content.text || JSON.stringify(content.json, null, 2);
+    const text = isTextContent(content) && content.text
+      ? content.text
+      : JSON.stringify(isJSONContent(content) ? content.json : null, null, 2);
     await navigator.clipboard.writeText(text);
     alert("已复制到剪贴板");
   } catch (e: any) {

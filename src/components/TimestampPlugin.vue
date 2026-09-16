@@ -4,12 +4,18 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import quarterOfYear from 'dayjs/plugin/quarterOfYear';
+import weekOfYear from 'dayjs/plugin/weekOfYear';
+import dayOfYear from 'dayjs/plugin/dayOfYear';
 import 'dayjs/locale/zh-cn';
 
 // 配置 dayjs
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(relativeTime);
+dayjs.extend(quarterOfYear);
+dayjs.extend(weekOfYear);
+dayjs.extend(dayOfYear);
 dayjs.locale('zh-cn');
 
 const emit = defineEmits<{
@@ -96,8 +102,9 @@ const currentTimeInfo = computed(() => {
 });
 
 // 复制到剪贴板
-async function copyToClipboard(text: string | number) {
+async function copyToClipboard(text: string | number | undefined) {
   try {
+    if (text === undefined) return;
     await navigator.clipboard.writeText(text.toString());
     // 简单的视觉反馈
     const btn = event?.target as HTMLElement;

@@ -2,7 +2,7 @@
 import type { App } from "../types";
 import AppIcon from "./AppIcon.vue";
 
-const props = defineProps<{
+defineProps<{
   apps: App[];
   selectedIndex: number;
 }>();
