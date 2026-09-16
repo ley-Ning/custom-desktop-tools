@@ -12,6 +12,7 @@ import JsonEditorPlugin from "./components/JsonEditorPlugin.vue";
 import TimestampPlugin from "./components/TimestampPlugin.vue";
 import AiChatPlugin from "./components/AiChatPlugin.vue";
 import TranslatorPlugin from "./components/TranslatorPlugin.vue";
+import CalcPlugin from "./components/CalcPlugin.vue";
 import type { App, Plugin } from "./types";
 import { initDB, getEnabledPlugins, getClipboardHistory, getMemos } from "./db";
 
@@ -33,6 +34,11 @@ const showAiChat = ref(false);
 const showTranslator = ref(false);
 // 打开翻译插件时带入的初始文本（来自搜索框）
 const translatorInitialText = ref("");
+const showCalc = ref(false);
+// 打开计算稿纸时带入的初始算式（来自搜索框）
+const calcInitialExpression = ref("");
+// 主搜索栏算式即时求值结果（非空时在推荐区顶部展示）
+const calcResult = ref("");
 const expandedRecent = ref(false);
 
 // 窗口固定状态
@@ -71,6 +77,7 @@ function saveCurrentState() {
     showTimestamp: showTimestamp.value,
     showAiChat: showAiChat.value,
     showTranslator: showTranslator.value,
+    showCalc: showCalc.value,
     expandedRecent: expandedRecent.value,
     isPinned: isPinned.value,
   };
@@ -91,6 +98,7 @@ function restoreLastState() {
       showTimestamp.value = state.showTimestamp || false;
       showAiChat.value = state.showAiChat || false;
       showTranslator.value = state.showTranslator || false;
+      showCalc.value = state.showCalc || false;
       expandedRecent.value = state.expandedRecent || false;
       isPinned.value = state.isPinned || false;
     }
@@ -176,11 +184,14 @@ const showSearchResults = computed(() => searchQuery.value.length > 0 && (apps.v
 const showSmartRecommendations = computed(() => {
   if (searchQuery.value.length === 0) return false;
   if (apps.value.length > 0 || matchedPlugins.value.length > 0) return false;
-  
+
+  // 算式即时计算结果优先展示
+  if (calcResult.value) return true;
+
   // 检测是否需要翻译（包含中文或英文）
   const hasChinese = /[\u4e00-\u9fa5]/.test(searchQuery.value);
   const hasEnglish = /[a-zA-Z]/.test(searchQuery.value);
-  
+
   return hasChinese || hasEnglish;
 });
 
@@ -189,9 +200,17 @@ const smartRecommendedPlugins = computed(() => {
   const query = searchQuery.value;
   const hasChinese = /[\u4e00-\u9fa5]/.test(query);
   const hasEnglish = /[a-zA-Z]/.test(query);
-  
+
   const recommendations = [];
-  
+
+  // 算式有效时，计算稿纸为第一推荐（Enter 直接进入并带入算式）
+  if (calcResult.value) {
+    const calcPlugin = allPlugins.value.find(p => p.id === 'calc');
+    if (calcPlugin) {
+      recommendations.push(calcPlugin);
+    }
+  }
+
   // 如果包含中文或英文，推荐翻译
   if (hasChinese || hasEnglish) {
     const translatorPlugin = allPlugins.value.find(p => p.id === 'translator');
@@ -199,15 +218,39 @@ const smartRecommendedPlugins = computed(() => {
       recommendations.push(translatorPlugin);
     }
   }
-  
+
   // 总是推荐AI对话
   const aiPlugin = allPlugins.value.find(p => p.id === 'ai');
   if (aiPlugin) {
     recommendations.push(aiPlugin);
   }
-  
+
   return recommendations;
 });
+
+// 判断输入是否可能是算式（含数字且含运算符/括号，或形如函数调用）
+function looksLikeMath(query: string): boolean {
+  if (!/\d/.test(query)) return false;
+  if (/[+\-*/%^()]/.test(query)) return true;
+  return /(sqrt|sin|cos|tan|log|ln|abs|round|floor|ceil|exp|min|max|pow|cbrt|log2|asin|acos|atan)\s*\(/i.test(query);
+}
+
+// 主搜索栏算式即时求值（防抖）
+let calcTimer: number | null = null;
+
+async function checkCalcExpression(query: string) {
+  if (!looksLikeMath(query)) {
+    calcResult.value = "";
+    return;
+  }
+  try {
+    const result = await invoke<string>("evaluate_expression", { expr: query });
+    // 结果与输入相同（纯数字回显）时不展示
+    calcResult.value = result === query.trim() ? "" : result;
+  } catch {
+    calcResult.value = "";
+  }
+}
 
 // 防抖搜索
 let searchTimer: number | null = null;
@@ -261,6 +304,19 @@ watch(searchQuery, (newQuery) => {
   searchTimer = setTimeout(() => {
     searchApps(trimmedQuery);
   }, 150);
+
+  // 算式即时求值（与搜索并行，仅在无匹配时展示）
+  if (calcTimer) {
+    clearTimeout(calcTimer);
+  }
+  if (!trimmedQuery) {
+    calcResult.value = "";
+  } else {
+    calcTimer = setTimeout(() => {
+      calcTimer = null;
+      checkCalcExpression(trimmedQuery);
+    }, 250);
+  }
 });
 
 async function handleSelect(app: App) {
@@ -276,7 +332,7 @@ async function handleSelect(app: App) {
 
 function handleKeydown(e: KeyboardEvent) {
   // 如果在设置界面、插件市场或插件中，ESC 返回主界面
-  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value || showAiChat.value || showTranslator.value) {
+  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value || showAiChat.value || showTranslator.value || showCalc.value) {
     if (e.key === "Escape") {
       showSettings.value = false;
       showPluginMarket.value = false;
@@ -286,6 +342,7 @@ function handleKeydown(e: KeyboardEvent) {
       showTimestamp.value = false;
       showAiChat.value = false;
       showTranslator.value = false;
+      showCalc.value = false;
       saveCurrentState(); // 保存当前状态（主页面）
       nextTick(() => focusInput());
     }
@@ -441,6 +498,21 @@ function closeTranslator() {
   nextTick(() => focusInput());
 }
 
+function openCalc() {
+  // 搜索框算式带入计算稿纸
+  calcInitialExpression.value = searchQuery.value;
+  showCalc.value = true;
+  searchQuery.value = "";
+  apps.value = [];
+  saveCurrentState(); // 保存状态
+}
+
+function closeCalc() {
+  showCalc.value = false;
+  saveCurrentState(); // 保存当前状态（主页面）
+  nextTick(() => focusInput());
+}
+
 // 选择插件
 function selectPlugin(plugin: Plugin) {
   // 根据插件 ID 执行对应操作
@@ -462,6 +534,9 @@ function selectPlugin(plugin: Plugin) {
       break;
     case 'translator':
       openTranslator();
+      break;
+    case 'calc':
+      openCalc();
       break;
     default:
       alert(`${plugin.name} 开发中...`);
@@ -506,6 +581,9 @@ onMounted(async () => {
       case 'translator':
         showTranslator.value = true;
         break;
+      case 'calc':
+        showCalc.value = true;
+        break;
     }
     return; // 不执行后续的初始化逻辑
   }
@@ -531,6 +609,7 @@ onMounted(async () => {
     showTimestamp.value = false;
     showAiChat.value = false;
     showTranslator.value = false;
+    showCalc.value = false;
     saveCurrentState(); // 保存当前状态（主页面）
     nextTick(() => focusInput());
   });
@@ -601,6 +680,9 @@ onUnmounted(() => {
 
     <!-- 聚合翻译插件 -->
     <TranslatorPlugin v-else-if="showTranslator" :initial-text="translatorInitialText" @close="closeTranslator" />
+
+    <!-- 计算稿纸插件 -->
+    <CalcPlugin v-else-if="showCalc" :initial-expression="calcInitialExpression" @close="closeCalc" />
 
     <!-- JSON 编辑器插件 -->
     <JsonEditorPlugin v-else-if="showJsonEditor" @close="closeJsonEditor" />
@@ -686,8 +768,17 @@ onUnmounted(() => {
           <h3>智能推荐</h3>
           <span class="hint-text">没找到？试试这些 ></span>
         </div>
-        
+
         <div class="recommendations-content">
+          <!-- 算式即时计算结果 -->
+          <div v-if="calcResult" class="calc-inline" @click="openCalc">
+            <div class="calc-inline-icon">🧮</div>
+            <div class="calc-inline-body">
+              <div class="calc-inline-expr">{{ searchQuery }}</div>
+              <div class="calc-inline-hint">Enter 或点击打开计算稿纸</div>
+            </div>
+            <div class="calc-inline-result">= {{ calcResult }}</div>
+          </div>
           <div class="recommendations-grid">
             <div
               v-for="plugin in smartRecommendedPlugins"
@@ -1235,6 +1326,67 @@ onUnmounted(() => {
 .default-view::-webkit-scrollbar,
 .recommendations-content::-webkit-scrollbar {
   width: 8px;
+}
+
+/* 算式即时计算卡片 */
+.calc-inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(48, 207, 208, 0.12), rgba(51, 8, 103, 0.2));
+  border: 1px solid rgba(48, 207, 208, 0.25);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.calc-inline:hover {
+  border-color: rgba(48, 207, 208, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(48, 207, 208, 0.15);
+}
+
+.calc-inline-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+  flex-shrink: 0;
+}
+
+.calc-inline-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.calc-inline-expr {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calc-inline-hint {
+  margin-top: 3px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.calc-inline-result {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 20px;
+  font-weight: 600;
+  color: #4fe0c8;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .default-view::-webkit-scrollbar-track,

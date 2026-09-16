@@ -91,3 +91,15 @@ export interface StreamDoneEvent {
     status: 'ok' | 'error' | 'stopped';
     error?: string;
 }
+
+// ===== 计算稿纸插件（与 src-tauri/src/calc.rs 对应，snake_case） =====
+
+/** 稿纸单行求值结果 */
+export interface CalcLineResult {
+    input: string;
+    ok: boolean;
+    value?: string;
+    error?: string;
+    is_assignment: boolean;
+    var_name?: string;
+}

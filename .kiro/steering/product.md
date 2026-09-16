@@ -6,7 +6,7 @@
 
 - **Global Shortcut**: Quick access via `Alt+Space` (customizable)
 - **Smart Search**: Fuzzy search with initials matching for macOS applications
-- **Plugin System**: Built-in plugins for clipboard history, memos, JSON editing, and more
+- **Plugin System**: Built-in plugins for clipboard history, memos, JSON editing, AI chat, translator, calc scratchpad, and more
 - **System Tray**: Persistent tray icon with quick access menu
 - **Modern UI**: Dark theme with gradient icons, macOS-style design
 

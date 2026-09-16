@@ -9,6 +9,7 @@ use base64::prelude::*;
 
 mod ai_chat;
 mod translator;
+mod calc;
 
 /// 应用信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -506,6 +507,10 @@ pub fn run() {
             ai_chat::delete_conversation,
             ai_chat::open_external_url,
             translator::translate_text,
+            calc::evaluate_expression,
+            calc::evaluate_scratchpad,
+            calc::load_calc_lines,
+            calc::save_calc_lines,
             open_plugin_window,
             call_mcp_tool,
             save_memo_to_yxbj
@@ -904,6 +909,9 @@ async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), Str
         "json" => "JSON 编辑器",
         "clipboard" => "剪贴板历史",
         "memo" => "备忘快贴",
+        "ai" => "AI 对话",
+        "translator" => "聚合翻译",
+        "calc" => "计算稿纸",
         _ => "插件窗口",
     };
     
