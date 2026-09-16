@@ -16,7 +16,7 @@
 2. **Memo Plugin** (📝): Quick notes with tags and pinning
 3. **JSON Editor** (📊): Format and edit JSON with CodeMirror
 4. **AI Chat** (🤖): Streaming AI conversations with multi-session management, Markdown rendering, and per-conversation system prompts (OpenAI-compatible endpoints)
-5. **Translator** (🌐): Multi-language translation (planned)
+5. **Translator** (🌐): Multi-engine translation (MyMemory / Google / AI models) with auto language detection
 
 ## Target Platform
 

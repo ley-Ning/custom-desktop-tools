@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use base64::prelude::*;
 
 mod ai_chat;
+mod translator;
 
 /// 应用信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -504,6 +505,7 @@ pub fn run() {
             ai_chat::save_conversation,
             ai_chat::delete_conversation,
             ai_chat::open_external_url,
+            translator::translate_text,
             open_plugin_window,
             call_mcp_tool,
             save_memo_to_yxbj

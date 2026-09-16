@@ -11,6 +11,7 @@
 - 📋 **剪贴板历史**：自动记录剪贴板历史，支持搜索和收藏
 - 📝 **备忘快贴**：快速记录笔记，支持标签和置顶
 - 🤖 **AI 对话**：多会话管理、流式响应、Markdown 与代码高亮渲染、系统提示词与上下文长度设置，兼容 OpenAI 协议的任意模型（DeepSeek / OpenRouter / 自定义网关等）
+- 🌐 **聚合翻译**：MyMemory / Google / AI 多引擎，自动检测语言、输入即翻译、译文一键复制
 - 🔌 **插件市场**：浏览和安装插件
 - ⚙️ **完整设置**：快捷键、偏好设置、AI 模型等
 
@@ -56,6 +57,7 @@ my-utools/
 │   ├── src/
 │   │   ├── lib.rs         # 核心逻辑
 │   │   ├── ai_chat.rs     # AI 对话插件（流式请求/对话持久化）
+│   │   ├── translator.rs   # 聚合翻译插件（MyMemory/Google 引擎）
 │   │   └── main.rs        # 入口文件
 │   ├── Cargo.toml         # Rust 依赖
 │   └── tauri.conf.json    # Tauri 配置
