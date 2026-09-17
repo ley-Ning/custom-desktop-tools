@@ -900,10 +900,10 @@ async fn save_ai_config(config: String) -> Result<(), String> {
 async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), String> {
     use tauri::{WebviewUrl, WebviewWindowBuilder};
     use std::sync::atomic::{AtomicU32, Ordering};
-    
+
     static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(0);
     let counter = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
-    
+
     let window_label = format!("plugin-{}-{}", plugin_id, counter);
     let window_title = match plugin_id.as_str() {
         "json" => "JSON 编辑器",
@@ -914,14 +914,15 @@ async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), Str
         "calc" => "计算稿纸",
         _ => "插件窗口",
     };
-    
-    // 构建 URL，添加插件参数
-    let url = format!("http://localhost:1420?plugin={}", plugin_id);
-    
+
+    // 使用应用自身资源路径（dev 与打包环境均可用的入口），
+    // 通过 URL 参数告知前端要打开的插件
+    let url = format!("index.html?plugin={}", plugin_id);
+
     WebviewWindowBuilder::new(
         &app,
         &window_label,
-        WebviewUrl::External(url.parse().unwrap())
+        WebviewUrl::App(url.into()),
     )
     .title(window_title)
     .inner_size(1000.0, 700.0)
@@ -929,7 +930,7 @@ async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), Str
     .center()
     .build()
     .map_err(|e| format!("创建窗口失败: {}", e))?;
-    
+
     Ok(())
 }
 

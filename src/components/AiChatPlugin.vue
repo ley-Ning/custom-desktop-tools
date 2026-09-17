@@ -16,6 +16,10 @@ import type {
   StreamDoneEvent,
 } from "../types";
 
+const props = defineProps<{
+  initialInput?: string;
+}>();
+
 const emit = defineEmits<{
   close: [];
 }>();
@@ -504,11 +508,29 @@ onMounted(async () => {
 
   await loadModels();
   await setupListeners();
+
+  // 搜索框带入的初始输入（如智能推荐进入）
+  if (props.initialInput?.trim()) {
+    input.value = props.initialInput;
+  }
+
+  // 生成中按 Esc 先停止生成而不是关闭插件（捕获阶段拦截主窗口的 Esc 处理）
+  window.addEventListener("keydown", onCaptureKeydown, true);
+
   focusInput();
   scrollToBottom(true);
 });
 
+function onCaptureKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape" && isGenerating.value) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    stopGeneration();
+  }
+}
+
 onUnmounted(() => {
+  window.removeEventListener("keydown", onCaptureKeydown, true);
   if (unlistenChunk) unlistenChunk();
   if (unlistenDone) unlistenDone();
   if (copiedTimer) clearTimeout(copiedTimer);

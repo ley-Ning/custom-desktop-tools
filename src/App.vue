@@ -31,6 +31,8 @@ const showMemo = ref(false);
 const showJsonEditor = ref(false);
 const showTimestamp = ref(false);
 const showAiChat = ref(false);
+// 打开 AI 对话时带入的初始输入（来自搜索框）
+const aiChatInitialText = ref("");
 const showTranslator = ref(false);
 // 打开翻译插件时带入的初始文本（来自搜索框）
 const translatorInitialText = ref("");
@@ -470,7 +472,15 @@ function closeTimestamp() {
   nextTick(() => focusInput());
 }
 
+// 从搜索框抓取待处理文本：仅当内容不是通过插件关键词匹配进来时
+// （关键词匹配时 query 是"翻译/fy"这类指令词，不应作为内容带入）
+function grabInitialText(pluginId: string): string {
+  const fromKeyword = matchedPlugins.value.some(p => p.id === pluginId);
+  return fromKeyword ? "" : searchQuery.value;
+}
+
 function openAiChat() {
+  aiChatInitialText.value = grabInitialText('ai');
   showAiChat.value = true;
   searchQuery.value = "";
   apps.value = [];
@@ -485,7 +495,7 @@ function closeAiChat() {
 
 function openTranslator() {
   // 搜索框内容作为初始文本带入（uTools 式：输入即翻译）
-  translatorInitialText.value = searchQuery.value;
+  translatorInitialText.value = grabInitialText('translator');
   showTranslator.value = true;
   searchQuery.value = "";
   apps.value = [];
@@ -500,7 +510,7 @@ function closeTranslator() {
 
 function openCalc() {
   // 搜索框算式带入计算稿纸
-  calcInitialExpression.value = searchQuery.value;
+  calcInitialExpression.value = grabInitialText('calc');
   showCalc.value = true;
   searchQuery.value = "";
   apps.value = [];
@@ -676,7 +686,7 @@ onUnmounted(() => {
     <TimestampPlugin v-if="showTimestamp" @close="closeTimestamp" />
 
     <!-- AI 对话插件 -->
-    <AiChatPlugin v-else-if="showAiChat" @close="closeAiChat" />
+    <AiChatPlugin v-else-if="showAiChat" :initial-input="aiChatInitialText" @close="closeAiChat" />
 
     <!-- 聚合翻译插件 -->
     <TranslatorPlugin v-else-if="showTranslator" :initial-text="translatorInitialText" @close="closeTranslator" />
