@@ -13,6 +13,7 @@ import TimestampPlugin from "./components/TimestampPlugin.vue";
 import AiChatPlugin from "./components/AiChatPlugin.vue";
 import TranslatorPlugin from "./components/TranslatorPlugin.vue";
 import CalcPlugin from "./components/CalcPlugin.vue";
+import TextToolPlugin from "./components/TextToolPlugin.vue";
 import type { App, Plugin } from "./types";
 import { initDB, getEnabledPlugins, getClipboardHistory, getMemos } from "./db";
 
@@ -37,6 +38,8 @@ const showTranslator = ref(false);
 // 打开翻译插件时带入的初始文本（来自搜索框）
 const translatorInitialText = ref("");
 const showCalc = ref(false);
+const showTextTool = ref(false);
+const textToolInitialText = ref("");
 // 打开计算稿纸时带入的初始算式（来自搜索框）
 const calcInitialExpression = ref("");
 // 主搜索栏算式即时求值结果（非空时在推荐区顶部展示）
@@ -80,6 +83,7 @@ function saveCurrentState() {
     showAiChat: showAiChat.value,
     showTranslator: showTranslator.value,
     showCalc: showCalc.value,
+    showTextTool: showTextTool.value,
     expandedRecent: expandedRecent.value,
     isPinned: isPinned.value,
   };
@@ -101,6 +105,7 @@ function restoreLastState() {
       showAiChat.value = state.showAiChat || false;
       showTranslator.value = state.showTranslator || false;
       showCalc.value = state.showCalc || false;
+      showTextTool.value = state.showTextTool || false;
       expandedRecent.value = state.expandedRecent || false;
       isPinned.value = state.isPinned || false;
     }
@@ -334,7 +339,7 @@ async function handleSelect(app: App) {
 
 function handleKeydown(e: KeyboardEvent) {
   // 如果在设置界面、插件市场或插件中，ESC 返回主界面
-  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value || showAiChat.value || showTranslator.value || showCalc.value) {
+  if (showSettings.value || showPluginMarket.value || showClipboard.value || showMemo.value || showJsonEditor.value || showTimestamp.value || showAiChat.value || showTranslator.value || showCalc.value || showTextTool.value) {
     if (e.key === "Escape") {
       showSettings.value = false;
       showPluginMarket.value = false;
@@ -523,6 +528,21 @@ function closeCalc() {
   nextTick(() => focusInput());
 }
 
+function openTextTool() {
+  // 搜索框内容作为初始输入带入
+  textToolInitialText.value = grabInitialText('text');
+  showTextTool.value = true;
+  searchQuery.value = "";
+  apps.value = [];
+  saveCurrentState(); // 保存状态
+}
+
+function closeTextTool() {
+  showTextTool.value = false;
+  saveCurrentState(); // 保存当前状态（主页面）
+  nextTick(() => focusInput());
+}
+
 // 选择插件
 function selectPlugin(plugin: Plugin) {
   // 根据插件 ID 执行对应操作
@@ -547,6 +567,9 @@ function selectPlugin(plugin: Plugin) {
       break;
     case 'calc':
       openCalc();
+      break;
+    case 'text':
+      openTextTool();
       break;
     default:
       alert(`${plugin.name} 开发中...`);
@@ -594,6 +617,9 @@ onMounted(async () => {
       case 'calc':
         showCalc.value = true;
         break;
+      case 'text':
+        showTextTool.value = true;
+        break;
     }
     return; // 不执行后续的初始化逻辑
   }
@@ -620,6 +646,7 @@ onMounted(async () => {
     showAiChat.value = false;
     showTranslator.value = false;
     showCalc.value = false;
+    showTextTool.value = false;
     saveCurrentState(); // 保存当前状态（主页面）
     nextTick(() => focusInput());
   });
@@ -693,6 +720,7 @@ onUnmounted(() => {
 
     <!-- 计算稿纸插件 -->
     <CalcPlugin v-else-if="showCalc" :initial-expression="calcInitialExpression" @close="closeCalc" />
+    <TextToolPlugin v-else-if="showTextTool" :initial-input="textToolInitialText" @close="closeTextTool" />
 
     <!-- JSON 编辑器插件 -->
     <JsonEditorPlugin v-else-if="showJsonEditor" @close="closeJsonEditor" />

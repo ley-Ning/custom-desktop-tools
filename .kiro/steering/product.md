@@ -17,6 +17,7 @@
 3. **JSON Editor** (📊): Format and edit JSON with CodeMirror
 4. **AI Chat** (🤖): Streaming AI conversations with multi-session management, Markdown rendering, and per-conversation system prompts (OpenAI-compatible endpoints)
 5. **Translator** (🌐): Multi-engine translation (MyMemory / Google / AI models) with auto language detection
+6. **Text Toolkit** (🔐): Base64 / URL / Hex encode-decode and MD5 / SHA-1 / SHA-256 / SHA-512 hashing, fully offline
 
 ## Target Platform
 

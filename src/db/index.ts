@@ -118,6 +118,18 @@ async function initDefaultPlugins(db: IDBPDatabase<MyUToolsDB>) {
             author: 'My uTools',
         },
         {
+            id: 'text',
+            name: '文本工具箱',
+            icon: '🔐',
+            gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+            keywords: ['文本', 'text', 'base64', '编码', '解码', '哈希', 'hash', 'md5', 'sha256', 'url', 'hex', 'bianma', 'jiema', 'wenben'],
+            description: 'Base64 / URL / Hex 编解码与 MD5 / SHA 哈希',
+            enabled: true,
+            builtin: true,
+            version: '1.0.0',
+            author: '如意 RuYi',
+        },
+        {
             id: 'timestamp',
             name: '时间戳转换',
             icon: '🕐',

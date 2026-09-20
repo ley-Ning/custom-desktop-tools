@@ -10,6 +10,7 @@ use base64::prelude::*;
 mod ai_chat;
 mod translator;
 mod calc;
+mod text_tools;
 
 /// 应用信息
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -517,6 +518,9 @@ pub fn run() {
             calc::evaluate_scratchpad,
             calc::load_calc_lines,
             calc::save_calc_lines,
+            text_tools::text_hash,
+            text_tools::text_base64_encode,
+            text_tools::text_base64_decode,
             open_plugin_window,
             call_mcp_tool,
             save_memo_to_yxbj
@@ -918,6 +922,7 @@ async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), Str
         "ai" => "AI 对话",
         "translator" => "聚合翻译",
         "calc" => "计算稿纸",
+        "text" => "文本工具箱",
         _ => "插件窗口",
     };
 
