@@ -32,7 +32,11 @@ jobs:
           workspaces: src-tauri
 
       - name: 安装前端依赖
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile 2>&1 | tee install.log || {
+            echo "::error::$(tail -c 900 install.log | tr '\n' ' ')"
+            exit 1
+          }
 
       # 更新包签名（createUpdaterArtifacts 已在 tauri.conf.json 开启）
       - name: 构建并发布
