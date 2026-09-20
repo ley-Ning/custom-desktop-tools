@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tauri::{command, AppHandle, Emitter, State, Window};
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
 
 /// 最多保留的对话数量
@@ -70,11 +70,10 @@ pub struct ApiChatMessage {
     pub content: String,
 }
 
-/// AI 模型配置（与 ai-config.json 的 models 数组对应）
+/// AI 模型配置（与 ai-config.json 的 models 数组对应；name/is_default 由前端使用，后端不读）
 #[derive(Debug, Clone, Deserialize)]
 pub struct AiModelConfig {
     pub id: String,
-    pub name: String,
     #[serde(default)]
     pub provider: String,
     pub base_url: String,
@@ -82,8 +81,6 @@ pub struct AiModelConfig {
     pub model: String,
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default)]
-    pub is_default: bool,
 }
 
 /// OpenAI 兼容 chat/completions 请求体
@@ -146,11 +143,31 @@ enum SseOutcome {
     Content(String),
     /// 收到 [DONE]
     Done,
+    /// 服务端通过事件报错（如 Anthropic error 事件）
+    Error(String),
     /// 空行/注释/无内容的 chunk
     Ignore,
 }
 
-/// 解析一行 SSE data 负载
+/// API 协议类型：按模型 provider 字段选择
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ApiProtocol {
+    /// OpenAI 兼容协议（openai / deepseek / openrouter / custom 等网关）
+    OpenAiCompatible,
+    /// Anthropic 原生 /v1/messages 协议
+    Anthropic,
+}
+
+impl ApiProtocol {
+    fn from_provider(provider: &str) -> Self {
+        match provider {
+            "anthropic" => ApiProtocol::Anthropic,
+            _ => ApiProtocol::OpenAiCompatible,
+        }
+    }
+}
+
+/// 解析一行 SSE data 负载（OpenAI 兼容协议）
 fn handle_sse_data(data: &str) -> SseOutcome {
     let data = data.trim();
     if data.is_empty() {
@@ -169,6 +186,73 @@ fn handle_sse_data(data: &str) -> SseOutcome {
         },
         // 忽略无法解析的行（keep-alive、事件注释等）
         Err(_) => SseOutcome::Ignore,
+    }
+}
+
+/// Anthropic /v1/messages 请求体（system 为独立顶层字段、max_tokens 必填）
+#[derive(Debug, Serialize)]
+struct AnthropicRequest<'a> {
+    model: &'a str,
+    max_tokens: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    system: Option<String>,
+    messages: Vec<ApiChatMessage>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f64>,
+}
+
+/// Anthropic SSE 事件（仅提取需要的字段）
+#[derive(Debug, Deserialize)]
+struct AnthropicEvent {
+    #[serde(rename = "type")]
+    kind: String,
+    #[serde(default)]
+    delta: Option<AnthropicDelta>,
+    #[serde(default)]
+    error: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AnthropicDelta {
+    #[serde(rename = "type", default)]
+    kind: String,
+    #[serde(default)]
+    text: Option<String>,
+}
+
+/// 解析一行 SSE data 负载（Anthropic 原生协议）
+fn handle_anthropic_sse_data(data: &str) -> SseOutcome {
+    let data = data.trim();
+    if data.is_empty() {
+        return SseOutcome::Ignore;
+    }
+    let event: AnthropicEvent = match serde_json::from_str(data) {
+        Ok(e) => e,
+        Err(_) => return SseOutcome::Ignore,
+    };
+    match event.kind.as_str() {
+        // 正文增量：delta.type == "text_delta" 时携带 text
+        "content_block_delta" => match event.delta {
+            Some(delta) if delta.kind == "text_delta" => match delta.text {
+                Some(text) if !text.is_empty() => SseOutcome::Content(text),
+                _ => SseOutcome::Ignore,
+            },
+            // thinking_delta 等其他增量类型忽略
+            _ => SseOutcome::Ignore,
+        },
+        "message_stop" => SseOutcome::Done,
+        "error" => {
+            let message = event
+                .error
+                .as_ref()
+                .and_then(|e| e.get("message"))
+                .and_then(|m| m.as_str())
+                .unwrap_or("未知错误");
+            SseOutcome::Error(format!("Anthropic 错误: {}", message))
+        }
+        // message_start / content_block_start / content_block_stop / ping 等
+        _ => SseOutcome::Ignore,
     }
 }
 
@@ -301,23 +385,61 @@ async fn run_streaming_request(
         Err(e) => return err_event(message_id, format!("创建 HTTP 客户端失败: {}", e)),
     };
 
-    let url = format!("{}/chat/completions", model.base_url.trim_end_matches('/'));
-    let body = ChatCompletionRequest {
-        model: &model.model,
-        messages: &messages,
-        stream: true,
-        temperature,
-        max_tokens,
+    // 按协议构建请求（URL / 认证头 / 请求体各不相同）
+    let protocol = ApiProtocol::from_provider(&model.provider);
+
+    let request_builder = match protocol {
+        ApiProtocol::OpenAiCompatible => {
+            let url = format!("{}/chat/completions", model.base_url.trim_end_matches('/'));
+            let body = ChatCompletionRequest {
+                model: &model.model,
+                messages: &messages,
+                stream: true,
+                temperature,
+                max_tokens,
+            };
+            client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", model.api_key))
+                .header("Content-Type", "application/json")
+                .json(&body)
+        }
+        ApiProtocol::Anthropic => {
+            let url = format!("{}/messages", model.base_url.trim_end_matches('/'));
+            // Anthropic 协议中 system 是独立顶层字段，不放在 messages 里
+            let system: Vec<&str> = messages
+                .iter()
+                .filter(|m| m.role == "system")
+                .map(|m| m.content.as_str())
+                .collect();
+            let chat_messages: Vec<ApiChatMessage> = messages
+                .iter()
+                .filter(|m| m.role != "system")
+                .cloned()
+                .collect();
+            let body = AnthropicRequest {
+                model: &model.model,
+                // max_tokens 在 Anthropic 协议中必填
+                max_tokens: max_tokens.unwrap_or(4096),
+                system: if system.is_empty() {
+                    None
+                } else {
+                    Some(system.join("\n\n"))
+                },
+                messages: chat_messages,
+                stream: true,
+                temperature,
+            };
+            client
+                .post(&url)
+                .header("x-api-key", &model.api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .json(&body)
+        }
     };
 
-    let response = match client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", model.api_key))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-    {
+    let response = match request_builder.send().await {
         Ok(r) => r,
         Err(e) => return err_event(message_id, format!("网络请求失败，请检查网络或模型配置: {}", e)),
     };
@@ -334,6 +456,12 @@ async fn run_streaming_request(
     // SSE 数据可能跨 chunk 边界，必须缓冲后按行切分
     let mut buffer = String::new();
 
+    // 按协议选择 data 负载解析器
+    let parse_sse = |data: &str| match protocol {
+        ApiProtocol::OpenAiCompatible => handle_sse_data(data),
+        ApiProtocol::Anthropic => handle_anthropic_sse_data(data),
+    };
+
     loop {
         match stream.next().await {
             Some(Ok(bytes)) => {
@@ -347,7 +475,7 @@ async fn run_streaming_request(
                         continue; // 忽略 event:/id:/注释/空行
                     };
 
-                    match handle_sse_data(data) {
+                    match parse_sse(data) {
                         SseOutcome::Content(content) => {
                             let _ = window.emit(
                                 "ai-message-chunk",
@@ -363,6 +491,9 @@ async fn run_streaming_request(
                                 status: "ok",
                                 error: None,
                             }
+                        }
+                        SseOutcome::Error(error) => {
+                            return err_event(message_id, error);
                         }
                         SseOutcome::Ignore => {}
                     }
@@ -442,8 +573,8 @@ pub async fn open_external_url(url: String, app: AppHandle) -> Result<(), String
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err("仅支持 http/https 链接".to_string());
     }
-    app.shell()
-        .open(url, None)
+    app.opener()
+        .open_url(url, None::<&str>)
         .map_err(|e| format!("打开链接失败: {}", e))
 }
 
@@ -573,5 +704,104 @@ mod tests {
         let loaded: Conversation = serde_json::from_str(json).unwrap();
         assert_eq!(loaded.settings.context_length, 20);
         assert!(loaded.settings.system_prompt.is_empty());
+    }
+
+    #[test]
+    fn test_protocol_from_provider() {
+        assert_eq!(
+            ApiProtocol::from_provider("anthropic"),
+            ApiProtocol::Anthropic
+        );
+        assert_eq!(
+            ApiProtocol::from_provider("openai"),
+            ApiProtocol::OpenAiCompatible
+        );
+        assert_eq!(
+            ApiProtocol::from_provider("deepseek"),
+            ApiProtocol::OpenAiCompatible
+        );
+        assert_eq!(
+            ApiProtocol::from_provider("custom"),
+            ApiProtocol::OpenAiCompatible
+        );
+        assert_eq!(
+            ApiProtocol::from_provider(""),
+            ApiProtocol::OpenAiCompatible
+        );
+    }
+
+    #[test]
+    fn test_anthropic_request_serialization() {
+        let request = AnthropicRequest {
+            model: "claude-sonnet-4",
+            max_tokens: 4096,
+            system: Some("你是翻译引擎".to_string()),
+            messages: vec![
+                ApiChatMessage {
+                    role: "user".to_string(),
+                    content: "hello".to_string(),
+                },
+                ApiChatMessage {
+                    role: "assistant".to_string(),
+                    content: "hi".to_string(),
+                },
+            ],
+            stream: true,
+            temperature: None,
+        };
+        let json = serde_json::to_string(&request).unwrap();
+        // system 为顶层字段
+        assert!(json.contains(r#""system":"你是翻译引擎""#));
+        // max_tokens 必填
+        assert!(json.contains(r#""max_tokens":4096"#));
+        assert!(json.contains(r#""stream":true"#));
+        // None 的 temperature 不序列化
+        assert!(!json.contains("temperature"));
+        // messages 只含 user/assistant
+        assert!(!json.contains(r#""role":"system""#));
+    }
+
+    #[test]
+    fn test_anthropic_sse_content_delta() {
+        let json = r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"你好"}}"#;
+        assert_eq!(
+            handle_anthropic_sse_data(json),
+            SseOutcome::Content("你好".to_string())
+        );
+    }
+
+    #[test]
+    fn test_anthropic_sse_non_text_delta_ignored() {
+        // 思考增量等非正文类型不作为内容输出
+        let json = r#"{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"..."}}"#;
+        assert_eq!(handle_anthropic_sse_data(json), SseOutcome::Ignore);
+    }
+
+    #[test]
+    fn test_anthropic_sse_lifecycle_events() {
+        assert_eq!(
+            handle_anthropic_sse_data(r#"{"type":"message_stop"}"#),
+            SseOutcome::Done
+        );
+        assert_eq!(handle_anthropic_sse_data(r#"{"type":"ping"}"#), SseOutcome::Ignore);
+        assert_eq!(
+            handle_anthropic_sse_data(r#"{"type":"message_start","message":{}}"#),
+            SseOutcome::Ignore
+        );
+        assert_eq!(
+            handle_anthropic_sse_data(r#"{"type":"content_block_start","index":0}"#),
+            SseOutcome::Ignore
+        );
+        assert_eq!(handle_anthropic_sse_data(""), SseOutcome::Ignore);
+        assert_eq!(handle_anthropic_sse_data("not json"), SseOutcome::Ignore);
+    }
+
+    #[test]
+    fn test_anthropic_sse_error_event() {
+        let json = r#"{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}"#;
+        match handle_anthropic_sse_data(json) {
+            SseOutcome::Error(msg) => assert!(msg.contains("Overloaded")),
+            other => panic!("expected Error, got {:?}", other),
+        }
     }
 }

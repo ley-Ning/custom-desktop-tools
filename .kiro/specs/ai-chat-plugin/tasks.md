@@ -47,5 +47,10 @@
 ## 5. 未实现（超出本期范围，见 design.md Phase 2）
 
 - 虚拟滚动组件级实现（以 `content-visibility` 等效满足 Requirement 14.3）
-- Anthropic 原生协议（当前统一走 OpenAI 兼容端点；Anthropic 用户可经 OpenRouter 等兼容网关使用）
 - 多模态输入、对话导出、函数调用
+
+## 6. 后续增强（2026-09-16 第二轮优化）
+
+- [x] ApiProtocol 抽象：按模型 provider 字段自动选择协议（anthropic → 原生 /v1/messages，其余 → OpenAI 兼容）
+- [x] Anthropic 原生协议支持：`x-api-key` + `anthropic-version` 认证头、system 独立顶层字段、必填 max_tokens（默认 4096）、`content_block_delta`/`message_stop`/`error` SSE 事件解析（thinking 增量不混入正文）
+- [x] 新增 6 个单元测试（协议选择、请求体序列化、SSE 事件族），全套 33 个测试通过

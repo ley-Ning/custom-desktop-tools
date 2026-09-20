@@ -2,7 +2,7 @@ use std::{fs, path::Path, process::Command, sync::Arc};
 use serde::{Deserialize, Serialize};
 use tauri::{command, AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
 use std::sync::Mutex;
 use base64::prelude::*;
@@ -343,6 +343,7 @@ pub fn run() {
     
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             println!("My uTools 启动成功！");
@@ -392,15 +393,15 @@ pub fn run() {
                     match event.id().as_ref() {
                         "website" => {
                             // 打开官网
-                            let _ = app.shell().open("https://github.com/yourusername/my-utools", None);
+                            let _ = app.opener().open_url("https://github.com/ley-Ning/custom-desktop-tools", None::<&str>);
                         }
                         "privacy" => {
                             // 打开隐私政策
-                            let _ = app.shell().open("https://github.com/yourusername/my-utools/blob/main/PRIVACY.md", None);
+                            let _ = app.opener().open_url("https://github.com/ley-Ning/custom-desktop-tools/blob/main/README.md", None::<&str>);
                         }
                         "terms" => {
                             // 打开用户协议
-                            let _ = app.shell().open("https://github.com/yourusername/my-utools/blob/main/TERMS.md", None);
+                            let _ = app.opener().open_url("https://github.com/ley-Ning/custom-desktop-tools/blob/main/LICENSE", None::<&str>);
                         }
                         "version" => {
                             // 显示版本信息（可以打开关于页面）
@@ -932,14 +933,6 @@ async fn open_plugin_window(plugin_id: String, app: AppHandle) -> Result<(), Str
     .map_err(|e| format!("创建窗口失败: {}", e))?;
 
     Ok(())
-}
-
-/// MCP 工具调用参数
-#[derive(Debug, Serialize, Deserialize)]
-struct McpToolCall {
-    server_name: String,
-    tool_name: String,
-    arguments: serde_json::Value,
 }
 
 /// 调用 MCP 工具

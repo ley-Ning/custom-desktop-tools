@@ -22,21 +22,23 @@ pub struct TranslateResult {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct MyMemoryResponse {
     #[serde(default)]
-    responseData: Option<MyMemoryResponseData>,
+    response_data: Option<MyMemoryResponseData>,
     #[serde(default)]
-    responseStatus: i64,
+    response_status: i64,
     #[serde(default)]
-    responseDetails: String,
+    response_details: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct MyMemoryResponseData {
     #[serde(default)]
-    translatedText: String,
+    translated_text: String,
     #[serde(default)]
-    detectedLanguage: Option<String>,
+    detected_language: Option<String>,
 }
 
 /// 解析 Google gtx 响应：[[["译文","原文",...],...],null,"检测语言",...]
@@ -61,24 +63,24 @@ fn parse_google_response(value: &serde_json::Value) -> Option<(String, Option<St
 
 /// 解析 MyMemory 响应
 fn parse_mymemory_response(resp: &MyMemoryResponse) -> Result<TranslateResult, String> {
-    if resp.responseStatus != 200 {
+    if resp.response_status != 200 {
         return Err(format!(
             "MyMemory 错误 {}: {}",
-            resp.responseStatus, resp.responseDetails
+            resp.response_status, resp.response_details
         ));
     }
     let data = resp
-        .responseData
+        .response_data
         .as_ref()
         .ok_or("MyMemory 返回数据为空")?;
-    let text = data.translatedText.trim().to_string();
+    let text = data.translated_text.trim().to_string();
     // 免费额度用尽时 translatedText 会以警告文本代替译文
     if text.is_empty() || text.starts_with("MYMEMORY WARNING") || text.starts_with("PLEASE SELECT") {
         return Err(format!("MyMemory: {}", text));
     }
     Ok(TranslateResult {
         text,
-        detected: data.detectedLanguage.clone(),
+        detected: data.detected_language.clone(),
         engine: "mymemory".to_string(),
     })
 }
