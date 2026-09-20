@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import McpSettings from "./McpSettings.vue";
 import AiModelSettings from "./AiModelSettings.vue";
 
@@ -81,7 +85,7 @@ onMounted(async () => {
   if (savedMenu) {
     selectedMenu.value = savedMenu;
   }
-  
+
   try {
     const shortcut = await invoke<string | null>("get_shortcut");
     if (shortcut) {
@@ -91,15 +95,108 @@ onMounted(async () => {
   } catch (e) {
     console.error("Failed to get shortcut:", e);
   }
-  
+
   // 加载数据统计
   await loadDataStats();
+
+  // 当前版本号
+  try {
+    appVersion.value = await getVersion();
+  } catch (e) {
+    console.error("Failed to get version:", e);
+  }
+
+  // 托盘「检测更新」→ 切到更新面板并立即检查
+  unlistenCheckUpdate = await listen<void>("check-update", () => {
+    selectMenu("update");
+    checkForUpdate();
+  });
+});
+
+let unlistenCheckUpdate: (() => void) | null = null;
+
+onUnmounted(() => {
+  if (unlistenCheckUpdate) unlistenCheckUpdate();
 });
 
 function selectMenu(menu: string) {
   selectedMenu.value = menu;
   // 保存选中的菜单
   localStorage.setItem(SETTINGS_MENU_KEY, menu);
+}
+
+// ===== 软件更新（tauri-plugin-updater） =====
+
+type UpdateStatus = "idle" | "checking" | "available" | "uptodate" | "downloading" | "ready" | "error";
+
+const appVersion = ref("");
+const updateStatus = ref<UpdateStatus>("idle");
+const newVersion = ref("");
+const updateNotes = ref("");
+const downloadProgress = ref(0);
+const downloadedBytes = ref(0);
+const totalBytes = ref(0);
+const updateError = ref("");
+let pendingUpdate: Update | null = null;
+
+async function checkForUpdate() {
+  if (updateStatus.value === "checking" || updateStatus.value === "downloading") return;
+  updateStatus.value = "checking";
+  updateError.value = "";
+  try {
+    const update = await check();
+    if (update) {
+      pendingUpdate = update;
+      newVersion.value = update.version;
+      updateNotes.value = update.body || "";
+      updateStatus.value = "available";
+    } else {
+      pendingUpdate = null;
+      updateStatus.value = "uptodate";
+    }
+  } catch (e) {
+    updateStatus.value = "error";
+    updateError.value = `${e}`;
+  }
+}
+
+async function downloadAndInstallUpdate() {
+  if (!pendingUpdate) return;
+  updateStatus.value = "downloading";
+  downloadProgress.value = 0;
+  downloadedBytes.value = 0;
+  let total = 0;
+  let downloaded = 0;
+  try {
+    await pendingUpdate.downloadAndInstall((event) => {
+      switch (event.event) {
+        case "Started":
+          total = event.data.contentLength ?? 0;
+          totalBytes.value = total;
+          break;
+        case "Progress":
+          downloaded += event.data.chunkLength;
+          downloadedBytes.value = downloaded;
+          downloadProgress.value = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+          break;
+        case "Finished":
+          downloadProgress.value = 100;
+          break;
+      }
+    });
+    updateStatus.value = "ready";
+  } catch (e) {
+    updateStatus.value = "error";
+    updateError.value = `${e}`;
+  }
+}
+
+async function restartApp() {
+  try {
+    await relaunch();
+  } catch (e) {
+    console.error("重启失败:", e);
+  }
 }
 
 function startEditingShortcut() {
@@ -210,6 +307,18 @@ function handleShortcutInput(e: KeyboardEvent) {
               <rect x="3" y="14" width="7" height="7"/>
             </svg>
             <span>我的数据</span>
+          </div>
+          <div
+            class="menu-item"
+            :class="{ active: selectedMenu === 'update' }"
+            @click="selectMenu('update')"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+              <path d="M21 3v6h-6"/>
+              <path d="M12 7v6l4 2"/>
+            </svg>
+            <span>软件更新</span>
           </div>
           <div
             class="menu-item"
@@ -442,6 +551,70 @@ function handleShortcutInput(e: KeyboardEvent) {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 软件更新面板 -->
+        <div v-else-if="selectedMenu === 'update'" class="content-panel">
+          <h2 class="panel-title">软件更新</h2>
+
+          <div class="update-card">
+            <div class="update-version-row">
+              <span class="update-current">当前版本</span>
+              <span class="update-version-badge">v{{ appVersion || "…" }}</span>
+            </div>
+
+            <!-- 检查按钮 / 状态 -->
+            <div class="update-status-row">
+              <button
+                class="update-check-btn"
+                :disabled="updateStatus === 'checking' || updateStatus === 'downloading'"
+                @click="checkForUpdate"
+              >
+                {{ updateStatus === 'checking' ? '检查中…' : '检查更新' }}
+              </button>
+
+              <span v-if="updateStatus === 'uptodate'" class="update-hint ok">已是最新版本 ✓</span>
+              <span v-else-if="updateStatus === 'checking'" class="update-hint">正在检查…</span>
+            </div>
+
+            <!-- 发现新版本 -->
+            <div v-if="updateStatus === 'available' || updateStatus === 'downloading' || updateStatus === 'ready'" class="update-available">
+              <div class="update-new-version">
+                发现新版本 <b>v{{ newVersion }}</b>
+                <span class="update-size" v-if="totalBytes > 0">（约 {{ formatBytes(totalBytes) }}）</span>
+              </div>
+              <pre v-if="updateNotes" class="update-notes">{{ updateNotes }}</pre>
+
+              <div v-if="updateStatus === 'available'" class="update-actions">
+                <button class="update-install-btn" @click="downloadAndInstallUpdate">
+                  下载并安装
+                </button>
+              </div>
+
+              <!-- 下载进度 -->
+              <div v-else-if="updateStatus === 'downloading'" class="update-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: downloadProgress + '%' }"></div>
+                </div>
+                <span class="progress-text">
+                  {{ downloadProgress }}%
+                  <template v-if="totalBytes > 0">（{{ formatBytes(downloadedBytes) }} / {{ formatBytes(totalBytes) }}）</template>
+                </span>
+              </div>
+
+              <!-- 安装完成 -->
+              <div v-else-if="updateStatus === 'ready'" class="update-ready">
+                <span>更新已安装，重启后生效</span>
+                <button class="update-install-btn" @click="restartApp">立即重启</button>
+              </div>
+            </div>
+
+            <!-- 错误 -->
+            <div v-if="updateStatus === 'error'" class="update-error">
+              <p>检查更新失败：{{ updateError }}</p>
+              <p class="update-error-hint">尚未发布任何版本时更新源不存在，发布首个 Release 后即可正常检查。</p>
             </div>
           </div>
         </div>
@@ -1182,5 +1355,175 @@ input:checked + .toggle-slider:before {
   background: #3a3a3a;
   border-color: #5a5a5a;
   color: #e0e0e0;
+}
+
+/* ===== 软件更新 ===== */
+.update-card {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.update-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.update-current {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.update-version-badge {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0a84ff;
+  background: rgba(10, 132, 255, 0.12);
+  border-radius: 8px;
+}
+
+.update-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-check-btn {
+  padding: 7px 16px;
+  font-size: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, #0a84ff, #0066d6);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.update-check-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.update-check-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.update-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.update-hint.ok {
+  color: #30d158;
+}
+
+.update-available {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.update-new-version {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.update-new-version b {
+  color: #4fe0c8;
+}
+
+.update-size {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.update-notes {
+  max-height: 140px;
+  overflow-y: auto;
+  margin: 12px 0;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+.update-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.update-install-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, #30d158, #248a3d);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.update-install-btn:hover {
+  filter: brightness(1.1);
+}
+
+.update-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0a84ff, #30d158);
+  border-radius: 4px;
+  transition: width 200ms ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+.update-ready {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: #30d158;
+}
+
+.update-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 82, 82, 0.1);
+  border: 1px solid rgba(255, 82, 82, 0.25);
+  border-radius: 8px;
+}
+
+.update-error p {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #ff8787;
+  word-break: break-all;
+}
+
+.update-error-hint {
+  color: rgba(255, 255, 255, 0.45) !important;
 }
 </style>

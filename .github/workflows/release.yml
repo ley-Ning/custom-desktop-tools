@@ -1,0 +1,52 @@
+name: Release
+
+# 推送 v* 标签触发：构建 macOS 安装包 + 更新包签名 + 发布 GitHub Release
+# 首次使用前需在仓库 Settings → Secrets → Actions 配置：
+#   TAURI_SIGNING_PRIVATE_KEY          私钥内容（~/.tauri/custom-desktop-tools.key）
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD 私钥密码（本密钥为空则设为空字符串）
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 安装前端依赖
+        run: pnpm install --frozen-lockfile
+
+      # 更新包签名（createUpdaterArtifacts 已在 tauri.conf.json 开启）
+      - name: 构建并发布
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'My uTools v__VERSION__'
+          releaseBody: '见完整提交历史。应用内「设置 → 软件更新」可直接热更新到本版本。'
+          releaseDraft: false
+          prerelease: false
+          # 生成 latest.json 供应用内 updater 检查更新
+          includeUpdaterJson: true

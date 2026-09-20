@@ -344,6 +344,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             println!("My uTools 启动成功！");
@@ -408,9 +410,12 @@ pub fn run() {
                             println!("当前版本: {}", app.package_info().version);
                         }
                         "update" => {
-                            // 检测更新
-                            println!("检测更新中...");
-                            // TODO: 实现更新检测逻辑
+                            // 打开设置界面并触发检查更新（更新逻辑在前端 Settings 组件）
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                                let _ = window.emit("check-update", ());
+                            }
                         }
                         "settings" => {
                             // 打开设置界面

@@ -32,9 +32,22 @@ pnpm install
 # 启动开发服务器
 pnpm tauri dev
 
-# 构建应用
-pnpm tauri build
+# 构建应用（本地构建更新包需设置签名私钥）
+TAURI_SIGNING_PRIVATE_KEY=$(cat ~/.tauri/custom-desktop-tools.key) pnpm tauri build
 ```
+
+## 应用内热更新
+
+应用内置自动更新（设置 → 软件更新 / 托盘 → 检测更新），更新源为 GitHub Releases：
+
+1. 密钥对已生成：私钥 `~/.tauri/custom-desktop-tools.key`、密码
+   `~/.tauri/custom-desktop-tools.key.password`，公钥在 `tauri.conf.json`。
+   **两者务必保管好——丢失后无法再签发更新**
+2. 在仓库 Settings → Secrets → Actions 配置 `TAURI_SIGNING_PRIVATE_KEY`（私钥文件内容）
+   和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`（密码文件内容）
+3. 发版：`git tag v0.2.0 && git push origin v0.2.0`，Release 工作流自动构建
+   dmg / app.tar.gz / latest.json 并发布
+4. 已安装应用在「软件更新」中检查 → 下载 → 安装 → 重启，全程无需手动重装
 
 ## 技术栈
 

@@ -1,7 +1,7 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
     "productName": "my-utools",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "identifier": "com.lewen.my-utools",
     "build": {
         "beforeDevCommand": "pnpm dev",
@@ -47,12 +47,19 @@
         ],
         "macOS": {
             "minimumSystemVersion": "10.13"
-        }
+        },
+        "createUpdaterArtifacts": true
     },
     "plugins": {
         "shell": {
             "open": true
         },
-        "globalShortcut": {}
+        "globalShortcut": {},
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDExQTY2MENEQkZCQzM2MzAKUldRd05yeS96V0NtRVVhdDNPUzJ6WGpKOWpRUDMwQUI3VTR1Y290NnZMVWJIZUswMXRJWWMvc2UK",
+            "endpoints": [
+                "https://github.com/ley-Ning/custom-desktop-tools/releases/latest/download/latest.json"
+            ]
+        }
     }
 }
