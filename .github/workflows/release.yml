@@ -44,7 +44,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'My uTools v__VERSION__'
+          releaseName: '如意 RuYi v__VERSION__'
           releaseBody: '见完整提交历史。应用内「设置 → 软件更新」可直接热更新到本版本。'
           releaseDraft: false
           prerelease: false
