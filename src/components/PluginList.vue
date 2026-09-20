@@ -44,28 +44,45 @@ const emit = defineEmits<{
 .search-results {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
-  background: #2b2b2b;
+  padding: 10px 12px;
 }
 
 .result-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
-  margin-bottom: 4px;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+  margin-bottom: 2px;
+  animation: rowIn 200ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
 }
 
-.result-item:hover,
-.result-item.selected {
-  background: #3a3a3a;
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.result-item:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .result-item.selected {
-  box-shadow: 0 0 0 2px #5a9fd4 inset;
+  background: linear-gradient(90deg, rgba(10, 132, 255, 0.2), rgba(125, 92, 255, 0.12));
+  border-color: rgba(10, 132, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.result-item:active {
+  transform: scale(0.995);
 }
 
 .result-icon {
@@ -75,9 +92,10 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
-  background: #3a3a3a;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .result-info {
@@ -85,13 +103,13 @@ const emit = defineEmits<{
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .result-name {
   font-size: 14px;
-  font-weight: 500;
-  color: #e0e0e0;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -99,7 +117,7 @@ const emit = defineEmits<{
 
 .result-path {
   font-size: 11px;
-  color: #888;
+  color: rgba(255, 255, 255, 0.38);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -107,18 +125,31 @@ const emit = defineEmits<{
 
 .enter-hint {
   flex-shrink: 0;
+  opacity: 0;
+  animation: fadeIn 160ms ease 60ms forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
 }
 
 .enter-hint kbd {
-  display: inline-block;
-  padding: 4px 8px;
-  background: #4a4a4a;
-  border: 1px solid #5a5a5a;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  background: rgba(10, 132, 255, 0.22);
+  border: 1px solid rgba(10, 132, 255, 0.5);
+  border-radius: 7px;
   font-size: 12px;
-  font-weight: 500;
-  color: #e0e0e0;
-  font-family: monospace;
+  font-weight: 600;
+  color: #7cc0ff;
+  font-family: inherit;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 /* 滚动条 */
@@ -131,11 +162,11 @@ const emit = defineEmits<{
 }
 
 .search-results::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 3px;
 }
 
 .search-results::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
+  background: rgba(255, 255, 255, 0.24);
 }
 </style>

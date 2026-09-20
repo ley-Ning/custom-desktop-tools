@@ -16,8 +16,8 @@
     --macos-text-tertiary: rgba(255, 255, 255, 0.45);
 
     /* 强调色（蓝色） */
-    --macos-accent: #007AFF;
-    --macos-accent-hover: #0051D5;
+    --macos-accent: #0a84ff;
+    --macos-accent-hover: #0a6fdd;
 
     /* 圆角 */
     --macos-radius-sm: 6px;

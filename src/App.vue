@@ -741,15 +741,21 @@ onUnmounted(() => {
     <template v-else>
       <!-- 顶部搜索栏 -->
       <div class="search-header" data-tauri-drag-region>
-        <input
-          ref="searchInput"
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          placeholder="搜索应用和指令 / 粘贴文件或图片..."
-          autocomplete="off"
-          spellcheck="false"
-        />
+        <div class="search-input-wrap">
+          <svg class="search-glyph" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            ref="searchInput"
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="搜索应用与插件，或输入算式、粘贴文本…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
         <button 
           class="pin-icon" 
           :class="{ pinned: isPinned }"
@@ -762,10 +768,11 @@ onUnmounted(() => {
           </svg>
         </button>
         <button class="settings-icon" title="设置" @click="openSettings">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-            <path d="M2 17l10 5 10-5"/>
-            <path d="M2 12l10 5 10-5"/>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 4h-7" /><path d="M10 4H3" />
+            <path d="M21 12h-9" /><path d="M8 12H3" />
+            <path d="M21 20h-5" /><path d="M12 20H3" />
+            <circle cx="12" cy="4" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="14" cy="20" r="2" />
           </svg>
         </button>
       </div>
@@ -895,47 +902,85 @@ onUnmounted(() => {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: rgba(30, 30, 30, 0.85);
+  position: relative;
+  background: rgba(24, 26, 33, 0.88);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* 顶部品牌微光，呼应图标蓝紫渐变 */
+.app-container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 50% at 18% -8%, rgba(10, 132, 255, 0.10), transparent 60%),
+    radial-gradient(90% 40% at 88% -12%, rgba(125, 92, 255, 0.08), transparent 55%);
+  z-index: 0;
+}
+
+.app-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* 顶部搜索栏 - macOS 风格 */
 .search-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 16px 20px;
-  background: rgba(40, 40, 40, 0.85);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 19, 24, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.search-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 0 14px;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.search-input-wrap:focus-within {
+  border-color: rgba(10, 132, 255, 0.65);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.18), 0 4px 18px rgba(10, 132, 255, 0.10);
+}
+
+.search-glyph {
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.search-input-wrap:focus-within .search-glyph {
+  color: #0a84ff;
 }
 
 .search-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-size: 14px;
+  background: transparent;
+  border: none;
+  padding: 11px 0;
+  font-size: 16px;
+  font-weight: 450;
   color: rgba(255, 255, 255, 0.95);
   outline: none;
-  transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
   -webkit-app-region: no-drag;
 }
 
-.search-input:focus {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #007AFF;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
-}
-
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: 400;
 }
 
 .pin-icon {
@@ -961,14 +1006,15 @@ onUnmounted(() => {
 }
 
 .pin-icon.pinned {
-  background: #007AFF;
-  border-color: #007AFF;
+  background: #0a84ff;
+  border-color: #0a84ff;
   color: #fff;
+  box-shadow: 0 2px 10px rgba(10, 132, 255, 0.4);
 }
 
 .pin-icon.pinned:hover {
-  background: #0051D5;
-  border-color: #0051D5;
+  background: #0a6fdd;
+  border-color: #0a6fdd;
 }
 
 .pin-icon:active {
@@ -1034,10 +1080,10 @@ onUnmounted(() => {
 }
 
 .section-header h3 {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: -0.2px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1.5px;
   margin: 0;
 }
 
@@ -1050,7 +1096,7 @@ onUnmounted(() => {
 }
 
 .expand-hint:hover {
-  color: #007AFF;
+  color: #0a84ff;
 }
 
 /* 最近使用 - macOS 风格 */
@@ -1066,18 +1112,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 12px 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .recent-app-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
+  border-color: rgba(255, 255, 255, 0.16);
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .recent-app-item:active {
@@ -1130,18 +1176,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 20px 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .market-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .market-item:active {
@@ -1154,10 +1200,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
-  border-radius: 12px;
+  font-size: 30px;
+  border-radius: 14px;
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 6px 14px rgba(0, 0, 0, 0.28);
 }
 
 .market-info {
@@ -1206,10 +1254,10 @@ onUnmounted(() => {
 }
 
 .results-header h3 {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: -0.2px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1.5px;
   margin: 0;
 }
 
@@ -1225,18 +1273,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 16px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .plugin-result-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
 }
 
 .plugin-result-item:active {
@@ -1249,10 +1297,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
-  border-radius: 12px;
+  font-size: 28px;
+  border-radius: 13px;
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .plugin-name-medium {
@@ -1276,31 +1326,29 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background: rgba(40, 40, 40, 0.75);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px 20px;
+  background: rgba(18, 19, 24, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .recommendations-header h3 {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  letter-spacing: -0.2px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1.5px;
   margin: 0;
 }
 
 .hint-text {
   font-size: 12px;
   font-weight: 500;
-  color: #007AFF;
+  color: #0a84ff;
   cursor: pointer;
   transition: color 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 .hint-text:hover {
-  color: #0051D5;
+  color: #0a6fdd;
 }
 
 .recommendations-content {
@@ -1322,18 +1370,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   padding: 20px 16px;
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .recommendation-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .recommendation-item:active {
@@ -1346,10 +1394,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  border-radius: 14px;
+  font-size: 36px;
+  border-radius: 17px;
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 8px 18px rgba(0, 0, 0, 0.3);
 }
 
 .plugin-name-large {
