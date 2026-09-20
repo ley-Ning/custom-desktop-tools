@@ -1,6 +1,6 @@
-# custom-desktop-tools
+# 如意 RuYi（custom-desktop-tools）
 
-一个类 uTools 的应用启动器，使用 Tauri 2 + Vue 3 + TypeScript 构建，专为 macOS 设计。
+一个类 uTools 的应用启动器，使用 Tauri 2 + Vue 3 + TypeScript 构建，专为 macOS 设计。产品名「如意 RuYi」——愿你手边的工具皆如心意。
 
 ## 功能特性
 

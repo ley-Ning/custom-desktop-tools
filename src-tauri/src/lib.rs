@@ -348,7 +348,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            println!("My uTools 启动成功！");
+            println!("如意 RuYi 启动成功！");
 
             let app_state = AppState {
                 current_shortcut: Arc::new(Mutex::new(None)),
@@ -357,7 +357,7 @@ pub fn run() {
             app.manage(ai_chat::AiGeneration::default());
 
             // 创建托盘菜单
-            let website_item = MenuItemBuilder::with_id("website", "My uTools 官网").build(app)?;
+            let website_item = MenuItemBuilder::with_id("website", "如意 RuYi 官网").build(app)?;
             let privacy_item = MenuItemBuilder::with_id("privacy", "隐私政策").build(app)?;
             let terms_item = MenuItemBuilder::with_id("terms", "用户协议").build(app)?;
             

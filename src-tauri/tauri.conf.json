@@ -1,6 +1,6 @@
 {
     "$schema": "https://schema.tauri.app/config/2",
-    "productName": "my-utools",
+    "productName": "RuYi",
     "version": "0.2.0",
     "identifier": "com.lewen.my-utools",
     "build": {
@@ -14,7 +14,7 @@
         "macOSPrivateApi": true,
         "windows": [
             {
-                "title": "My uTools",
+                "title": "如意 RuYi",
                 "width": 900,
                 "height": 600,
                 "resizable": false,
