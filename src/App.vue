@@ -906,7 +906,7 @@ onUnmounted(() => {
   background: rgba(24, 26, 33, 0.88);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 18px;
+  border-radius: var(--r-window);
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
@@ -945,7 +945,7 @@ onUnmounted(() => {
   gap: 10px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
+  border-radius: var(--r-ctl);
   padding: 0 14px;
   transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
   -webkit-app-region: no-drag;
@@ -991,7 +991,7 @@ onUnmounted(() => {
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
@@ -1029,7 +1029,7 @@ onUnmounted(() => {
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
@@ -1114,7 +1114,7 @@ onUnmounted(() => {
   padding: 12px 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   cursor: pointer;
   transition: all 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
@@ -1136,7 +1136,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14px;
+  border-radius: var(--r-card);
   overflow: hidden;
   background: rgba(255, 255, 255, 0.05);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -1178,7 +1178,7 @@ onUnmounted(() => {
   padding: 20px 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border-radius: var(--r-card);
   cursor: pointer;
   transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
@@ -1201,7 +1201,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 30px;
-  border-radius: 14px;
+  border-radius: var(--r-card);
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
@@ -1231,7 +1231,7 @@ onUnmounted(() => {
   text-align: center;
   padding: 2px 8px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
 }
 
 /* 搜索结果容器 */
@@ -1275,7 +1275,7 @@ onUnmounted(() => {
   padding: 16px 12px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   cursor: pointer;
   transition: all 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
@@ -1298,7 +1298,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 28px;
-  border-radius: 13px;
+  border-radius: var(--r-card);
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
@@ -1372,7 +1372,7 @@ onUnmounted(() => {
   padding: 20px 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border-radius: var(--r-card);
   cursor: pointer;
   transition: all 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
@@ -1395,7 +1395,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 36px;
-  border-radius: 17px;
+  border-radius: var(--r-card);
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
@@ -1425,7 +1425,7 @@ onUnmounted(() => {
   margin-bottom: 16px;
   background: linear-gradient(135deg, rgba(48, 207, 208, 0.12), rgba(51, 8, 103, 0.2));
   border: 1px solid rgba(48, 207, 208, 0.25);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   cursor: pointer;
   transition: all 150ms cubic-bezier(0.4, 0.0, 0.2, 1);
 }
@@ -1443,7 +1443,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   font-size: 22px;
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
   background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
   flex-shrink: 0;
 }

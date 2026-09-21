@@ -52,7 +52,7 @@ const emit = defineEmits<{
   align-items: center;
   gap: 14px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--r-ctl);
   border: 1px solid transparent;
   cursor: pointer;
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
@@ -92,7 +92,7 @@ const emit = defineEmits<{
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
   overflow: hidden;
   background: rgba(255, 255, 255, 0.06);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -144,7 +144,7 @@ const emit = defineEmits<{
   padding: 0 6px;
   background: rgba(10, 132, 255, 0.22);
   border: 1px solid rgba(10, 132, 255, 0.5);
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   font-weight: 600;
   color: #7cc0ff;

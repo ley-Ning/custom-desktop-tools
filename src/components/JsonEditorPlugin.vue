@@ -465,7 +465,7 @@ onUnmounted(() => {
   background: rgba(30, 30, 30, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 18px;
+  border-radius: var(--r-window);
   overflow: hidden;
 }
 
@@ -494,7 +494,7 @@ onUnmounted(() => {
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   transition: all 150ms ease;
@@ -515,7 +515,7 @@ onUnmounted(() => {
   display: flex;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   overflow: hidden;
 }
 
@@ -544,7 +544,7 @@ onUnmounted(() => {
   font-size: 12px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
   transition: all 150ms ease;
@@ -595,7 +595,7 @@ onUnmounted(() => {
   font-size: 12px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   white-space: nowrap;
@@ -635,7 +635,7 @@ onUnmounted(() => {
   font-family: "SF Mono", Menlo, Consolas, monospace;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   color: rgba(255, 255, 255, 0.9);
   outline: none;
   transition: border-color 150ms ease;
@@ -654,7 +654,7 @@ onUnmounted(() => {
   font-size: 11px;
   background: rgba(255, 255, 255, 0.08);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   color: rgba(255, 255, 255, 0.75);
   cursor: pointer;
   white-space: nowrap;
@@ -675,7 +675,7 @@ onUnmounted(() => {
   margin: 8px 16px 0;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
 }
 
 .result-label {
@@ -706,7 +706,7 @@ onUnmounted(() => {
   height: 20px;
   background: transparent;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
 }
@@ -725,7 +725,7 @@ onUnmounted(() => {
   padding: 8px 12px;
   background: rgba(255, 82, 82, 0.12);
   border: 1px solid rgba(255, 82, 82, 0.25);
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
   color: #ff8787;
   font-size: 12px;
 }

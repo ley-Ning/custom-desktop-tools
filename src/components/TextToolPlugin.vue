@@ -364,7 +364,7 @@ onUnmounted(() => {
   background: rgba(30, 30, 30, 0.92);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
-  border-radius: 18px;
+  border-radius: var(--r-window);
   overflow: hidden;
 }
 
@@ -393,7 +393,7 @@ onUnmounted(() => {
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   transition: all 150ms ease;
@@ -422,7 +422,7 @@ onUnmounted(() => {
   padding: 3px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
 }
 
 .mode-tab {
@@ -431,7 +431,7 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.6);
   background: transparent;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -462,7 +462,7 @@ onUnmounted(() => {
   color: #ff8a8a;
   background: rgba(255, 100, 100, 0.1);
   border: 1px solid rgba(255, 100, 100, 0.25);
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
 }
 
 .text-card {
@@ -471,7 +471,7 @@ onUnmounted(() => {
   min-height: 0;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   overflow: hidden;
 }
 
@@ -506,7 +506,7 @@ onUnmounted(() => {
   font-weight: 500;
   color: #7dc4ff;
   background: rgba(125, 196, 255, 0.12);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
 
 .toolbar-right {
@@ -530,7 +530,7 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.65);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -618,7 +618,7 @@ onUnmounted(() => {
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: var(--r-card);
 }
 
 .hash-algo {

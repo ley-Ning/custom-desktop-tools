@@ -2,6 +2,12 @@
 
 /* 全局变量 */
 :root {
+    /* 圆角体系（全局唯一来源，四档 + 圆形/胶囊用 999px/50%） */
+    --r-window: 18px;  /* 窗口外框 */
+    --r-card: 14px;    /* 卡片/面板/图标砖（≈macOS squircle 比例） */
+    --r-ctl: 10px;     /* 输入框/按钮/列表行/下拉 */
+    --r-sm: 6px;       /* 徽标/kbd/小 chip */
+
     /* macOS 颜色系统 */
     --macos-bg-primary: rgba(30, 30, 30, 0.85);
     --macos-bg-secondary: rgba(40, 40, 40, 0.75);
@@ -193,7 +199,7 @@
 .macos-badge {
     padding: 2px 8px;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
+    border-radius: var(--r-ctl);
     font-size: 11px;
     font-weight: 500;
     color: var(--macos-text-secondary);

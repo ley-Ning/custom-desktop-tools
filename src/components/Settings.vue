@@ -667,7 +667,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   padding: 6px 12px;
   background: transparent;
   border: 1px solid #4a4a4a;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   color: #999;
   font-size: 13px;
   cursor: pointer;
@@ -826,7 +826,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   padding: 8px 16px;
   background: #3a3a3a;
   border: 1px solid #4a4a4a;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-family: "SF Mono", "Monaco", monospace;
   font-size: 13px;
   font-weight: 500;
@@ -839,7 +839,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   padding: 8px 16px;
   background: transparent;
   border: 1px solid #4a4a4a;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   color: #e0e0e0;
   font-size: 13px;
   cursor: pointer;
@@ -863,7 +863,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   padding: 12px 16px;
   background: #3a3a3a;
   border: 2px solid #5a9fd4;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -897,7 +897,7 @@ function handleShortcutInput(e: KeyboardEvent) {
 .btn-cancel {
   flex: 1;
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -930,7 +930,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   padding: 8px 12px;
   background: rgba(243, 139, 168, 0.1);
   border: 1px solid rgba(243, 139, 168, 0.3);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   color: #f38ba8;
 }
@@ -940,7 +940,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   padding: 8px 12px;
   background: rgba(166, 227, 161, 0.1);
   border: 1px solid rgba(166, 227, 161, 0.3);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   font-size: 12px;
   color: #a6e3a1;
 }
@@ -968,7 +968,7 @@ function handleShortcutInput(e: KeyboardEvent) {
   bottom: 0;
   background-color: #4a4a4a;
   transition: 0.3s;
-  border-radius: 26px;
+  border-radius: 999px;
 }
 
 .toggle-slider:before {
@@ -996,7 +996,7 @@ input:checked + .toggle-slider:before {
   padding: 8px 12px;
   background: #3a3a3a;
   border: 1px solid #4a4a4a;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   color: #e0e0e0;
   font-size: 13px;
   cursor: pointer;
@@ -1083,7 +1083,7 @@ input:checked + .toggle-slider:before {
 .data-card {
   background: #323232;
   border: 1px solid #4a4a4a;
-  border-radius: 12px;
+  border-radius: var(--r-card);
   padding: 24px;
   transition: all 0.2s ease;
 }
@@ -1107,7 +1107,7 @@ input:checked + .toggle-slider:before {
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -1154,7 +1154,7 @@ input:checked + .toggle-slider:before {
   padding: 10px 16px;
   background: #3a3a3a;
   border: 1px solid #4a4a4a;
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   color: #e0e0e0;
   font-size: 13px;
   font-weight: 500;
@@ -1186,7 +1186,7 @@ input:checked + .toggle-slider:before {
 .data-info {
   background: #323232;
   border: 1px solid #4a4a4a;
-  border-radius: 12px;
+  border-radius: var(--r-card);
   padding: 24px;
 }
 
@@ -1214,7 +1214,7 @@ input:checked + .toggle-slider:before {
   padding: 16px;
   background: #323232;
   border: 1px solid #4a4a4a;
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
 }
 
 .setting-info p {
@@ -1235,7 +1235,7 @@ input:checked + .toggle-slider:before {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--r-card);
   font-size: 24px;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -1284,7 +1284,7 @@ input:checked + .toggle-slider:before {
 .server-item {
   background: #323232;
   border: 1px solid #4a4a4a;
-  border-radius: 10px;
+  border-radius: var(--r-ctl);
   overflow: hidden;
   transition: all 0.2s ease;
 }
@@ -1345,7 +1345,7 @@ input:checked + .toggle-slider:before {
   justify-content: center;
   background: transparent;
   border: 1px solid #4a4a4a;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   color: #b0b0b0;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1362,7 +1362,7 @@ input:checked + .toggle-slider:before {
   padding: 20px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: var(--r-card);
 }
 
 .update-version-row {
@@ -1383,7 +1383,7 @@ input:checked + .toggle-slider:before {
   font-weight: 600;
   color: #0a84ff;
   background: rgba(10, 132, 255, 0.12);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
 }
 
 .update-status-row {
@@ -1398,7 +1398,7 @@ input:checked + .toggle-slider:before {
   color: #fff;
   background: linear-gradient(135deg, #0a84ff, #0066d6);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   cursor: pointer;
 }
 
@@ -1449,7 +1449,7 @@ input:checked + .toggle-slider:before {
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.7);
   background: rgba(0, 0, 0, 0.25);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   white-space: pre-wrap;
   font-family: inherit;
 }
@@ -1465,7 +1465,7 @@ input:checked + .toggle-slider:before {
   color: #fff;
   background: linear-gradient(135deg, #30d158, #248a3d);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
   cursor: pointer;
 }
 
@@ -1513,7 +1513,7 @@ input:checked + .toggle-slider:before {
   padding: 12px 14px;
   background: rgba(255, 82, 82, 0.1);
   border: 1px solid rgba(255, 82, 82, 0.25);
-  border-radius: 8px;
+  border-radius: var(--r-ctl);
 }
 
 .update-error p {
