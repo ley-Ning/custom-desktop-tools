@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import {
   createJSONEditor,
   isContentValidationErrors,
@@ -173,7 +174,7 @@ async function copyToClipboard() {
   const text = getText();
   if (!text) return;
   try {
-    await navigator.clipboard.writeText(text);
+    await invoke("write_clipboard_text", { text });
     copied.value = true;
     if (copiedTimer) clearTimeout(copiedTimer);
     copiedTimer = window.setTimeout(() => (copied.value = false), 1500);

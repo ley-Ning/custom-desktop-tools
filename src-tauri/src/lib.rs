@@ -344,6 +344,7 @@ pub fn run() {
     
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -451,6 +452,9 @@ pub fn run() {
                 .build(app)?;
 
             println!("系统托盘图标创建成功");
+
+            // 系统剪贴板全局监听：任何应用的复制都进历史
+            start_clipboard_monitor(app.handle().clone());
 
             // 从 store 读取保存的快捷键
             let default_shortcut = "Alt+Space".to_string();
@@ -576,47 +580,10 @@ async fn add_clipboard_item(
     content_type: String,
     app: AppHandle,
 ) -> Result<ClipboardItem, String> {
-    println!("Adding clipboard item: type={}, content_len={}", content_type, content.len());
-    
-    let item = ClipboardItem {
-        id: uuid::Uuid::new_v4().to_string(),
-        content: content.clone(),
-        content_type: content_type.clone(),
-        timestamp: chrono::Utc::now().timestamp(),
-        favorite: false,
-        file_path: None,
-        file_size: None,
-    };
-
-    if let Ok(store) = app.store("clipboard.json") {
-        let mut history = if let Some(h) = store.get("history") {
-            serde_json::from_value::<Vec<ClipboardItem>>(h.clone()).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        // 避免重复（只检查最近的 5 条）
-        let is_duplicate = history.iter().take(5).any(|i| i.content == content);
-        
-        if !is_duplicate {
-            history.insert(0, item.clone());
-            
-            // 限制历史记录数量为 100
-            if history.len() > 100 {
-                history.truncate(100);
-            }
-
-            let _ = store.set("history", serde_json::to_value(&history).unwrap());
-            let _ = store.save();
-            println!("Clipboard item added successfully. Total items: {}", history.len());
-        } else {
-            println!("Duplicate clipboard item, skipped");
-        }
-    }
-
-    Ok(item)
+    let _ = content_type; // 目前仅文本捕获，保留参数以兼容前端
+    capture_clipboard_to_history(&app, content)
+        .ok_or_else(|| "重复内容，已跳过".to_string())
 }
-
 /// 删除剪贴板项
 #[command]
 async fn delete_clipboard_item(id: String, app: AppHandle) -> Result<(), String> {
@@ -765,63 +732,90 @@ async fn toggle_memo_pin(id: String, app: AppHandle) -> Result<(), String> {
 }
 
 
-/// 读取剪贴板文本
+/// 读取系统剪贴板文本（原生 clipboard-manager API）
 #[command]
-async fn read_clipboard_text() -> Result<String, String> {
-    use std::process::Command;
-    
-    #[cfg(target_os = "macos")]
-    {
-        let output = Command::new("pbpaste")
-            .output()
-            .map_err(|e| format!("Failed to read clipboard: {}", e))?;
-        
-        let text = String::from_utf8(output.stdout)
-            .map_err(|e| format!("Failed to parse clipboard content: {}", e))?;
-        
-        // 只返回非空文本
-        if text.trim().is_empty() {
-            return Err("Clipboard is empty".to_string());
-        }
-        
-        Ok(text)
+async fn read_clipboard_text(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    let text = app
+        .clipboard()
+        .read_text()
+        .map_err(|e| format!("读取剪贴板失败: {}", e))?;
+    if text.trim().is_empty() {
+        return Err("剪贴板为空".to_string());
     }
-    
-    #[cfg(not(target_os = "macos"))]
-    {
-        Err("Clipboard not supported on this platform".to_string())
+    Ok(text)
+}
+
+/// 写入系统剪贴板文本（原生 clipboard-manager API）
+#[command]
+async fn write_clipboard_text(text: String, app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_clipboard_manager::ClipboardExt;
+    app.clipboard()
+        .write_text(&text)
+        .map_err(|e| format!("写入剪贴板失败: {}", e))
+}
+
+/// 系统剪贴板后台监听：任何应用里的复制都会进入历史并广播事件。
+/// uTools 式"与系统共用同一个剪贴板"。
+fn start_clipboard_monitor(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_clipboard_manager::ClipboardExt;
+        let mut last: Option<String> = None;
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+            let text = match app.clipboard().read_text() {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            let text = text.trim().to_string();
+            if text.is_empty() || text.len() > 512 * 1024 {
+                continue;
+            }
+            if last.as_deref() == Some(text.as_str()) {
+                continue;
+            }
+            last = Some(text.clone());
+            let _ = capture_clipboard_to_history(&app, text);
+            use tauri::Emitter;
+            let _ = app.emit("clipboard-changed", ());
+        }
+    });
+}
+
+/// 将捕获的文本写入历史存储（add_clipboard_item 的公共内核）
+fn capture_clipboard_to_history(app: &tauri::AppHandle, content: String) -> Option<ClipboardItem> {
+    let item = ClipboardItem {
+        id: uuid::Uuid::new_v4().to_string(),
+        content: content.clone(),
+        content_type: "text".to_string(),
+        timestamp: chrono::Utc::now().timestamp(),
+        favorite: false,
+        file_path: None,
+        file_size: None,
+    };
+
+    if let Ok(store) = app.store("clipboard.json") {
+        let mut history = if let Some(h) = store.get("history") {
+            serde_json::from_value::<Vec<ClipboardItem>>(h.clone()).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        // 最近 5 条内同内容不重复记录
+        if history.iter().take(5).any(|i| i.content == content) {
+            return None;
+        }
+        history.insert(0, item.clone());
+        if history.len() > 100 {
+            history.truncate(100);
+        }
+        let _ = store.set("history", serde_json::to_value(&history).unwrap());
+        let _ = store.save();
+        Some(item)
+    } else {
+        None
     }
 }
 
-/// 写入剪贴板文本
-#[command]
-async fn write_clipboard_text(text: String) -> Result<(), String> {
-    use std::process::{Command, Stdio};
-    use std::io::Write;
-    
-    #[cfg(target_os = "macos")]
-    {
-        let mut child = Command::new("pbcopy")
-            .stdin(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Failed to write clipboard: {}", e))?;
-        
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(text.as_bytes())
-                .map_err(|e| format!("Failed to write to clipboard: {}", e))?;
-        }
-        
-        child.wait()
-            .map_err(|e| format!("Failed to wait for pbcopy: {}", e))?;
-        
-        Ok(())
-    }
-    
-    #[cfg(not(target_os = "macos"))]
-    {
-        Err("Clipboard not supported on this platform".to_string())
-    }
-}
 
 /// 获取 MCP 配置文件路径
 fn get_mcp_config_path() -> Result<std::path::PathBuf, String> {

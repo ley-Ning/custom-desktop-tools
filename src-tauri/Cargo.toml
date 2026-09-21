@@ -1,6 +1,6 @@
 [package]
 name = "custom-desktop-tools"
-version = "0.2.1"
+version = "0.2.2"
 description = "A custom desktop tools launcher with plugin support"
 authors = ["lewen"]
 edition = "2021"
@@ -33,6 +33,7 @@ md-5 = "0.10"
 sha1 = "0.10"
 sha2 = "0.10"
 hex = "0.4"
+tauri-plugin-clipboard-manager = "2"
 
 [profile.release]
 panic = "abort"

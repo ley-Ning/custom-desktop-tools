@@ -3,7 +3,6 @@ import { ref, onMounted, computed, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import {
   getClipboardHistory,
-  addClipboardItem,
   deleteClipboardItem,
   clearClipboardHistory,
   toggleClipboardFavorite,
@@ -90,39 +89,21 @@ async function toggleFavorite(id: string) {
   }
 }
 
-// 监听剪贴板变化
-let clipboardInterval: number | null = null;
-let lastClipboardContent = "";
-
-async function checkClipboard() {
-  try {
-    const content = await invoke<string>("read_clipboard_text");
-    if (content && content !== lastClipboardContent && content.trim()) {
-      lastClipboardContent = content;
-      await addClipboardItem({
-        content,
-        contentType: "text",
-      });
-      await loadHistory();
-      console.log("Added clipboard item:", content.substring(0, 50));
-    }
-  } catch (e) {
-    // 忽略读取错误
-  }
-}
+// 监听系统剪贴板变化：Rust 后台监听已全局捕获并广播 clipboard-changed 事件，
+// 界面打开时只需刷新列表（任何应用里的复制都会进历史）
+let unlistenClipboardChanged: (() => void) | null = null;
 
 async function startClipboardMonitor() {
-  // 立即检查一次
-  await checkClipboard();
-  
-  // 然后每秒检查一次
-  clipboardInterval = setInterval(checkClipboard, 1000) as unknown as number;
+  const { listen } = await import("@tauri-apps/api/event");
+  unlistenClipboardChanged = await listen<void>("clipboard-changed", () => {
+    loadHistory();
+  });
 }
 
 function stopClipboardMonitor() {
-  if (clipboardInterval) {
-    clearInterval(clipboardInterval);
-    clipboardInterval = null;
+  if (unlistenClipboardChanged) {
+    unlistenClipboardChanged();
+    unlistenClipboardChanged = null;
   }
 }
 
@@ -169,12 +150,6 @@ onMounted(async () => {
   startClipboardMonitor();
   window.addEventListener("keydown", handleKeydown);
   
-  // 初始化最后的剪贴板内容
-  try {
-    lastClipboardContent = await invoke<string>("read_clipboard_text");
-  } catch (e) {
-    // 忽略
-  }
 });
 
 onUnmounted(() => {

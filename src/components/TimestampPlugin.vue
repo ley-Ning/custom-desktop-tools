@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { invoke } from "@tauri-apps/api/core";
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -105,7 +106,7 @@ const currentTimeInfo = computed(() => {
 async function copyToClipboard(text: string | number | undefined) {
   try {
     if (text === undefined) return;
-    await navigator.clipboard.writeText(text.toString());
+    await invoke("write_clipboard_text", { text: text.toString() });
     // 简单的视觉反馈
     const btn = event?.target as HTMLElement;
     if (btn) {
