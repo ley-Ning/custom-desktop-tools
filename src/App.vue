@@ -180,7 +180,6 @@ const matchedPlugins = computed(() => {
     .sort((a, b) => b.score - a.score)
     .map(item => item.plugin);
   
-  console.log('Matched plugins:', scored.map(p => p.name));
   return scored;
 });
 
@@ -258,6 +257,20 @@ async function checkCalcExpression(query: string) {
     calcResult.value = "";
   }
 }
+
+// 鼠标悬停指令行时同步键盘选中（uTools 式）
+function onCommandHover(idx: number) {
+  if (selectedIndex.value !== idx) selectedIndex.value = idx;
+}
+
+// 选中行滚动跟随（指令行 + 应用行）
+watch(selectedIndex, () => {
+  nextTick(() => {
+    document
+      .querySelector(".command-row.selected, .result-item.selected")
+      ?.scrollIntoView({ block: "nearest" });
+  });
+});
 
 // 防抖搜索
 let searchTimer: number | null = null;
@@ -358,8 +371,8 @@ function handleKeydown(e: KeyboardEvent) {
 
   // 如果有搜索结果（应用或插件）
   if (showSearchResults.value) {
-    const totalResults = apps.value.length + matchedPlugins.value.length;
-    
+    const totalResults = matchedPlugins.value.length + apps.value.length;
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       selectedIndex.value = Math.min(selectedIndex.value + 1, totalResults - 1);
@@ -368,15 +381,15 @@ function handleKeydown(e: KeyboardEvent) {
       selectedIndex.value = Math.max(selectedIndex.value - 1, 0);
     } else if (e.key === "Enter") {
       e.preventDefault();
-      // 如果选中的是应用
-      if (selectedIndex.value < apps.value.length) {
-        handleSelect(apps.value[selectedIndex.value]);
+      // 插件指令优先：选中的是插件
+      if (selectedIndex.value < matchedPlugins.value.length) {
+        selectPlugin(matchedPlugins.value[selectedIndex.value]);
       }
-      // 如果选中的是插件
+      // 选中的是应用
       else {
-        const pluginIndex = selectedIndex.value - apps.value.length;
-        if (pluginIndex < matchedPlugins.value.length) {
-          selectPlugin(matchedPlugins.value[pluginIndex]);
+        const appIndex = selectedIndex.value - matchedPlugins.value.length;
+        if (appIndex < apps.value.length) {
+          handleSelect(apps.value[appIndex]);
         }
       }
     }
@@ -779,32 +792,39 @@ onUnmounted(() => {
 
       <!-- 搜索结果 -->
       <div v-if="showSearchResults" class="search-results-container">
+        <!-- 指令/插件结果置顶：输入关键词即命中，回车直达 -->
+        <div v-if="matchedPlugins.length > 0" class="command-results">
+          <div class="results-header">
+            <h3>指令</h3>
+          </div>
+          <div
+            v-for="(plugin, idx) in matchedPlugins"
+            :key="plugin.id"
+            class="command-row"
+            :class="{ selected: idx === selectedIndex }"
+            :style="{ '--gradient': plugin.gradient }"
+            :data-cmd-idx="idx"
+            @click="selectPlugin(plugin)"
+            @mousemove="onCommandHover(idx)"
+          >
+            <div class="command-icon">{{ plugin.icon }}</div>
+            <div class="command-body">
+              <div class="command-name">{{ plugin.name }}</div>
+              <div class="command-desc">{{ plugin.description }}</div>
+            </div>
+            <div v-if="idx === selectedIndex" class="command-enter">
+              <kbd>↵</kbd>
+            </div>
+          </div>
+        </div>
+
         <!-- 应用结果 -->
         <PluginList
           v-if="apps.length > 0"
           :apps="apps"
-          :selected-index="selectedIndex"
+          :selected-index="selectedIndex - matchedPlugins.length"
           @select="handleSelect"
         />
-        
-        <!-- 插件结果 -->
-        <div v-if="matchedPlugins.length > 0" class="plugin-results">
-          <div class="results-header">
-            <h3>匹配的插件</h3>
-          </div>
-          <div class="plugin-results-grid">
-            <div
-              v-for="plugin in matchedPlugins"
-              :key="plugin.id"
-              class="plugin-result-item"
-              :style="{ '--gradient': plugin.gradient }"
-              @click="selectPlugin(plugin)"
-            >
-              <div class="plugin-icon-medium">{{ plugin.icon }}</div>
-              <div class="plugin-name-medium">{{ plugin.name }}</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- 智能推荐（什么都没匹配到时） -->
@@ -1242,62 +1262,53 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
-/* 插件搜索结果 */
-.plugin-results {
-  padding: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+/* 指令行（插件关键词命中，置顶展示） */
+.command-results {
+  padding: 14px 16px 6px;
 }
 
-.results-header {
-  margin-bottom: 16px;
-  padding: 0 4px;
-}
-
-.results-header h3 {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 1.5px;
-  margin: 0;
-}
-
-.plugin-results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
-}
-
-.plugin-result-item {
+.command-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 16px 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-card);
+  gap: 14px;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  border-radius: var(--r-ctl);
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: all 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: background 140ms ease, border-color 140ms ease;
+  animation: rowIn 180ms cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
 }
 
-.plugin-result-item:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-  border-color: rgba(255, 255, 255, 0.18);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.plugin-result-item:active {
-  transform: translateY(0) scale(0.98);
+.command-row.selected {
+  background: linear-gradient(90deg, rgba(10, 132, 255, 0.2), rgba(125, 92, 255, 0.12));
+  border-color: rgba(10, 132, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
-.plugin-icon-medium {
-  width: 48px;
-  height: 48px;
+.command-row:active {
+  transform: scale(0.995);
+}
+
+.command-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 24px;
   border-radius: var(--r-card);
   background: var(--gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
   box-shadow:
@@ -1305,12 +1316,47 @@ onUnmounted(() => {
     0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.plugin-name-medium {
+.command-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.command-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.command-desc {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.42);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-enter {
+  flex-shrink: 0;
+}
+
+.command-enter kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  background: rgba(10, 132, 255, 0.22);
+  border: 1px solid rgba(10, 132, 255, 0.5);
+  border-radius: var(--r-sm);
   font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.95);
-  text-align: center;
-  line-height: 1.4;
+  font-weight: 600;
+  color: #7cc0ff;
+  font-family: inherit;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 /* 插件推荐 - macOS 风格 */

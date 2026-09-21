@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { watch } from "vue";
 import type { App } from "../types";
 import AppIcon from "./AppIcon.vue";
 
-defineProps<{
+const props = defineProps<{
   apps: App[];
   selectedIndex: number;
 }>();
@@ -10,6 +11,16 @@ defineProps<{
 const emit = defineEmits<{
   select: [app: App];
 }>();
+
+// 键盘选中变化时保持选中行可见
+watch(
+  () => props.selectedIndex,
+  () => {
+    document
+      .querySelector(".result-item.selected")
+      ?.scrollIntoView({ block: "nearest" });
+  }
+);
 </script>
 
 <template>
