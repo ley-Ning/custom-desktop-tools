@@ -1,6 +1,6 @@
 [package]
 name = "custom-desktop-tools"
-version = "0.2.0"
+version = "0.2.1"
 description = "A custom desktop tools launcher with plugin support"
 authors = ["lewen"]
 edition = "2021"
